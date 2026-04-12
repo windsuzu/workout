@@ -1,0 +1,238 @@
+{
+  "days": {
+    "A": {
+      "focus": "基礎力量與核心穩定",
+      "exercises": [
+        {
+          "name": "啞鈴臥推 (Bench)",
+          "weight": 18,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": "0° 平躺",
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "哥布林深蹲 (Squat)",
+          "weight": 24,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": "站姿",
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "單臂啞鈴划船 (Row)",
+          "weight": 16,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "高次數肩推 (Shoulder)",
+          "weight": 9,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 15,
+          "restTime": "1:00",
+          "badge": null,
+          "angleTag": "55°",
+          "color": "highlight"
+        },
+        {
+          "name": "集中彎舉 (Curl)",
+          "weight": 9,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "Y-T-W 穩定運動",
+          "weight": 3.5,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 30,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": "25°",
+          "color": "highlight"
+        }
+      ]
+    },
+    "B": {
+      "focus": "上胸輪廓與後側鏈",
+      "exercises": [
+        {
+          "name": "上斜臥推 (Incline)",
+          "weight": 13.5,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": "35°",
+          "color": "highlight"
+        },
+        {
+          "name": "羅馬尼亞硬舉 (RDL)",
+          "weight": 10,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 18,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "雙臂划船 (Row)",
+          "weight": 8,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 15,
+          "restTime": "1:30",
+          "badge": null,
+          "angleTag": "25°",
+          "color": "highlight"
+        },
+        {
+          "name": "啞鈴肩推 (Press)",
+          "weight": 13.5,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": "55°",
+          "color": "highlight"
+        },
+        {
+          "name": "仰臥三頭伸展 (Ext.)",
+          "weight": 5.5,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 16,
+          "restTime": "2:00",
+          "badge": "0° 平躺",
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "反向飛鳥 (Fly)",
+          "weight": 4.5,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 18,
+          "restTime": "1:30",
+          "badge": null,
+          "angleTag": "25°",
+          "color": "highlight"
+        }
+      ]
+    },
+    "C": {
+      "focus": "單腿穩定與手臂強化",
+      "exercises": [
+        {
+          "name": "窄握臥推 (Close)",
+          "weight": 13.5,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 16,
+          "restTime": "2:00",
+          "badge": "0° 平躺",
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "分腿蹲 (Split Squat)",
+          "weight": 10,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 12,
+          "restTime": "1:00",
+          "badge": null,
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "臀橋 (Hip Thrust)",
+          "weight": 13.5,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 20,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": null,
+          "color": "normal"
+        },
+        {
+          "name": "Y 字肩部飛鳥 (Y-Fly)",
+          "weight": 6.5,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 12,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": "35°",
+          "color": "highlight"
+        },
+        {
+          "name": "蜘蛛彎舉 (Spider)",
+          "weight": 5.5,
+          "unit": "kg",
+          "sets": 3,
+          "reps": 15,
+          "restTime": "1:30",
+          "badge": null,
+          "angleTag": "25°",
+          "color": "highlight"
+        },
+        {
+          "name": "三頭後踢 (Kickback)",
+          "weight": 4.5,
+          "unit": "kg",
+          "sets": 2,
+          "reps": 18,
+          "restTime": "2:00",
+          "badge": null,
+          "angleTag": null,
+          "color": "normal"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "user": {
+      "height": "175cm",
+      "weight": "70kg",
+      "goal": "增肌與身體穩定性"
+    },
+    "trainingTips": [
+      {
+        "title": "動作質量優先",
+        "content": "如果當天加班比較累（特別是開發工作繁重時），可以維持原重量但將動作做慢，增加肌肉受力時間。"
+      },
+      {
+        "title": "漸進負載",
+        "content": "當你可以輕鬆完成該項目的最高次數時，建議增加 1-2 公斤重量，或增加一組 (Set)。"
+      },
+      {
+        "title": "柔軟度提醒",
+        "content": "訓練後記得針對胸大肌與髖屈肌進行伸展，預防久坐帶來的緊繃。"
+      }
+    ]
+  }
+}
