@@ -9,7 +9,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": "0° 平躺",
           "angleTag": null,
           "color": "normal"
@@ -20,7 +20,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": "站姿",
           "angleTag": null,
           "color": "normal"
@@ -31,7 +31,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": null,
           "color": "normal"
@@ -42,7 +42,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 15,
-          "restTime": "1:30",
+          "restTime": "1:00",
           "badge": null,
           "angleTag": "55°",
           "color": "normal"
@@ -53,7 +53,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": null,
           "color": "normal"
@@ -64,7 +64,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 30,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": "25°",
           "color": "normal"
@@ -80,7 +80,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": "35°",
           "color": "normal"
@@ -91,7 +91,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 18,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": null,
           "color": "normal"
@@ -102,7 +102,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 15,
-          "restTime": "1:30",
+          "restTime": "1:00",
           "badge": null,
           "angleTag": "25°",
           "color": "normal"
@@ -113,7 +113,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": "55°",
           "color": "normal"
@@ -124,7 +124,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 16,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": "0° 平躺",
           "angleTag": null,
           "color": "normal"
@@ -135,7 +135,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 18,
-          "restTime": "1:30",
+          "restTime": "1:00",
           "badge": null,
           "angleTag": "25°",
           "color": "normal"
@@ -151,7 +151,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 16,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": "0° 平躺",
           "angleTag": null,
           "color": "normal"
@@ -162,7 +162,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": null,
           "color": "normal"
@@ -173,7 +173,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 20,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": null,
           "color": "normal"
@@ -184,7 +184,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 12,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": "35°",
           "color": "normal"
@@ -195,7 +195,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 15,
-          "restTime": "1:30",
+          "restTime": "1:00",
           "badge": null,
           "angleTag": "25°",
           "color": "normal"
@@ -206,7 +206,7 @@
           "unit": "kg",
           "sets": 2,
           "reps": 18,
-          "restTime": "2:00",
+          "restTime": "1:30",
           "badge": null,
           "angleTag": null,
           "color": "normal"
