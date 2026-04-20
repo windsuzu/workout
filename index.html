@@ -1,382 +1,404 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shih Chieh's Workout Pro</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
-    .container { margin: 0 auto !important; width: 50% !important; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shih Chieh's Workout Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+* { box-sizing: border-box; }
+body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
+.container { margin: 0 auto !important; width: 50% !important; }
 
-    /* 手機及平板：全寬 */
-    @media (max-width: 768px) {
-      .container { width: 100% !important; }
-    }
+/* 手機及平板：全寬 */
+@media (max-width: 768px) {
+  .container { width: 100% !important; }
+}
 
-    .tab-active { border-bottom: 4px solid #38bdf8; color: #38bdf8; }
-    .card { background: #1e293b; border-radius: 12px; margin-bottom: 1rem; padding: 1rem; border: 1px solid #334155; }
-    .badge { background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #94a3b8; }
-    .angle-tag { color: #fbbf24; font-weight: bold; }
-    .loading { text-align: center; padding: 2rem; color: #94a3b8; }
-    .error { text-align: center; padding: 2rem; color: #ef4444; }
-  </style>
+.tab-active { border-bottom: 4px solid #38bdf8; color: #38bdf8; }
+.card { background: #1e293b; border-radius: 12px; margin-bottom: 1rem; padding: 1rem; border: 1px solid #334155; }
+.badge { background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #94a3b8; }
+.angle-tag { color: #fbbf24; font-weight: bold; }
+.loading { text-align: center; padding: 2rem; color: #94a3b8; }
+.error { text-align: center; padding: 2rem; color: #ef4444; }
+</style>
 </head>
 <body>
-  <div class="container p-4 pb-10">
-    <header class="mb-6 text-center">
-      <h1 class="text-2xl font-bold text-white">🏋️‍♂️ 三日全身訓練系統</h1>
-      <p class="text-slate-400 text-sm mt-1" id="userInfo">載入中...</p>
-    </header>
+<div class="container p-4 pb-10">
+<header class="mb-6 text-center">
+  <h1 class="text-2xl font-bold text-white">🏋️‍♂️ 三日全身訓練系統</h1>
+  <p class="text-slate-400 text-sm mt-1" id="userInfo">載入中...</p>
+</header>
 
-    <div class="loading" id="loading">
-      載入訓練資料中...
+<div class="loading" id="loading">
+  載入訓練資料中...
+</div>
+
+<div class="error hidden" id="error">
+  載入訓練資料失敗，請檢查 workouts.json 檔案。
+</div>
+
+<div class="hidden" id="mainContent">
+  <div class="flex justify-around mb-6 border-b border-slate-700" id="tabContainer">
+    <button onclick="showDay('A')" id="btnA" class="pb-2 px-4 tab-active font-bold">Day A</button>
+    <button onclick="showDay('B')" id="btnB" class="pb-2 px-4 text-slate-400 font-bold">Day B</button>
+    <button onclick="showDay('C')" id="btnC" class="pb-2 px-4 text-slate-400 font-bold">Day C</button>
+  </div>
+
+  <div id="dayA" class="content-section"></div>
+  <div id="dayB" class="content-section hidden"></div>
+  <div id="dayC" class="content-section hidden"></div>
+
+  <!-- Training Notes Section -->
+  <div class="mt-10 pt-6 border-t border-slate-700" id="trainingTips">
+    <h2 class="text-xl font-bold text-white mb-4">💡 訓練備註 (Training Tips)</h2>
+    <div class="space-y-3" id="tipsContainer">
+      <!-- Tips will be dynamically loaded -->
     </div>
+  </div>
+</div>
 
-    <div class="error hidden" id="error">
-      載入訓練資料失敗，請檢查 workouts.json 檔案。
+<!-- 完成對話框 -->
+<div id="completionModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 p-4">
+  <div class="w-full max-w-md rounded-xl bg-slate-800 p-6 text-white shadow-lg">
+    <h2 class="text-xl font-bold mb-2">🎉 恭喜完成！</h2>
+    <p class="text-slate-200 mb-4">你已完成今天的所有訓練，想把這次訓練分享到日曆嗎？</p>
+    <div class="flex justify-end gap-2">
+      <button id="modalCancel" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-500">不用了</button>
+      <button id="modalShare" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">分享到 Calendar</button>
     </div>
+  </div>
+</div>
 
-    <div class="hidden" id="mainContent">
-      <div class="flex justify-around mb-6 border-b border-slate-700" id="tabContainer">
-        <button onclick="showDay('A')" id="btnA" class="pb-2 px-4 tab-active font-bold">Day A</button>
-        <button onclick="showDay('B')" id="btnB" class="pb-2 px-4 text-slate-400 font-bold">Day B</button>
-        <button onclick="showDay('C')" id="btnC" class="pb-2 px-4 text-slate-400 font-bold">Day C</button>
-      </div>
+</div>
 
-      <div id="dayA" class="content-section"></div>
-      <div id="dayB" class="content-section hidden"></div>
-      <div id="dayC" class="content-section hidden"></div>
+<script>
+let currentDay = 'A';
+let workoutData = null;
 
-      <!-- Training Notes Section -->
-      <div class="mt-10 pt-6 border-t border-slate-700" id="trainingTips">
-        <h2 class="text-xl font-bold text-white mb-4">💡 訓練備註 (Training Tips)</h2>
-        <div class="space-y-3" id="tipsContainer">
-          <!-- Tips will be dynamically loaded -->
+// Initialize app
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const response = await fetch('./workouts.json');
+    if (!response.ok) {
+      throw new Error('無法載入訓練資料');
+    }
+    workoutData = await response.json();
+    initializeApp();
+  } catch (error) {
+    showError();
+  }
+});
+
+function showError() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('error').classList.remove('hidden');
+}
+
+function initializeApp() {
+  // Hide loading, show main content
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('mainContent').classList.remove('hidden');
+
+  // Set user info
+  const user = workoutData.metadata.user;
+  document.getElementById('userInfo').textContent = `${user.height} / ${user.weight} | 目標：${user.goal}`;
+
+  // Render all days
+  renderDays();
+
+  // Render training tips
+  renderTrainingTips();
+
+  // Initialize rest timers
+  initRestTimers();
+
+  // Check URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const day = urlParams.get('day');
+  if (day && ['A', 'B', 'C'].includes(day.toUpperCase())) {
+    showDay(day.toUpperCase());
+  }
+}
+
+function renderDays() {
+  ['A', 'B', 'C'].forEach(day => {
+    const dayData = workoutData.days[day];
+    const container = document.getElementById(`day${day}`);
+    const exercisesHtml = dayData.exercises.map((exercise, index) => {
+      return createExerciseCard(exercise, index + 1);
+    }).join('');
+
+    container.innerHTML = `
+    <div class="mb-4 text-sky-400 font-semibold italic text-sm">焦點：${dayData.focus}</div>
+    <div class="mb-4">
+      <button onclick="shareDayToGoogleCalendar('${day}')" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
+       分享到 Google 日曆
+      </button>
+    </div>
+    ${exercisesHtml}
+    `;
+  });
+}
+
+function createExerciseCard(exercise, index) {
+  const colorClass = exercise.color === 'highlight' ? 'text-orange-200' : 'text-white';
+  const angleTag = exercise.angleTag ? `<span class="badge angle-tag">${exercise.angleTag}</span>` : '';
+  const badge = exercise.badge ? `<span class="badge">${exercise.badge}</span>` : '';
+
+  return `
+  <div class="card" data-rest-time="${exercise.restTime}" data-set-count="${exercise.sets}">
+    <div class="flex justify-between items-start mb-4">
+      <h3 class="font-bold text-xl ${colorClass}">${index}. ${exercise.name}</h3>
+      ${angleTag || badge}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Weight</div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-bold text-sky-400">${exercise.weight}</span>
+          <span class="text-sm text-slate-400">${exercise.unit}</span>
         </div>
       </div>
-    </div>
-
-    <!-- 完成對話框 -->
-    <div id="completionModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 p-4">
-      <div class="w-full max-w-md rounded-xl bg-slate-800 p-6 text-white shadow-lg">
-        <h2 class="text-xl font-bold mb-2">🎉 恭喜完成！</h2>
-        <p class="text-slate-200 mb-4">你已完成今天的所有訓練，想把這次訓練分享到日曆嗎？</p>
-        <div class="flex justify-end gap-2">
-          <button id="modalCancel" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-500">不用了</button>
-          <button id="modalShare" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">分享到 Calendar</button>
+      <div class="flex gap-3">
+        <div class="flex-1 bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+          <div class="text-xs text-slate-400 uppercase tracking-wider">Sets</div>
+          <div class="text-lg font-semibold text-emerald-400">${exercise.sets}</div>
+        </div>
+        <div class="flex-1 bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+          <div class="text-xs text-slate-400 uppercase tracking-wider">Reps</div>
+          <div class="text-lg font-semibold text-violet-400">${exercise.reps}+</div>
+        </div>
+        <div class="flex-1 bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+          <div class="text-xs text-slate-400 uppercase tracking-wider">Rest</div>
+          <div class="text-lg font-semibold text-amber-400">${exercise.restTime}</div>
         </div>
       </div>
     </div>
   </div>
+  `;
+}
 
-  <script>
-    let currentDay = 'A';
-    let workoutData = null;
+function renderTrainingTips() {
+  const tipsHtml = workoutData.metadata.trainingTips.map(tip => {
+    return `
+    <div class="card">
+      <h4 class="font-bold text-sky-400 mb-2">${tip.title}</h4>
+      <p class="text-slate-300 text-sm">${tip.content}</p>
+    </div>
+    `;
+  }).join('');
 
-    // Initialize app
-    document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const response = await fetch('./workouts.json');
-        if (!response.ok) {
-          throw new Error('無法載入訓練資料');
-        }
-        workoutData = await response.json();
-        initializeApp();
-      } catch (error) {
-        showError();
-      }
-    });
+  document.getElementById('tipsContainer').innerHTML = tipsHtml;
+}
 
-    function showError() {
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('error').classList.remove('hidden');
-    }
+function showDay(day) {
+  currentDay = day;
+  document.querySelectorAll('.content-section').forEach(el => el.classList.add('hidden'));
+  document.getElementById('day' + day).classList.remove('hidden');
 
-    function initializeApp() {
-      // Hide loading, show main content
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('mainContent').classList.remove('hidden');
+  ['A', 'B', 'C'].forEach(d => {
+    const btn = document.getElementById('btn' + d);
+    btn.classList.remove('tab-active', 'text-sky-400');
+    btn.classList.add('text-slate-400');
+  });
+  document.getElementById('btn' + day).classList.add('tab-active');
+  document.getElementById('btn' + day).classList.remove('text-slate-400');
+}
 
-      // Set user info
-      const user = workoutData.metadata.user;
-      document.getElementById('userInfo').textContent = `${user.height} / ${user.weight} | 目標：${user.goal}`;
-
-      // Render all days
-      renderDays();
-
-      // Render training tips
-      renderTrainingTips();
-
-      // Initialize rest timers
-      initRestTimers();
-
-      // Check URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const day = urlParams.get('day');
-      if (day && ['A', 'B', 'C'].includes(day.toUpperCase())) {
-        showDay(day.toUpperCase());
-      }
-    }
-
-    function renderDays() {
-      ['A', 'B', 'C'].forEach(day => {
-        const dayData = workoutData.days[day];
-        const container = document.getElementById(`day${day}`);
-        const exercisesHtml = dayData.exercises.map((exercise, index) => {
-          return createExerciseCard(exercise, index + 1);
-        }).join('');
-
-        container.innerHTML = `
-          <div class="mb-4 text-sky-400 font-semibold italic text-sm">焦點：${dayData.focus}</div>
-          <div class="mb-4">
-            <button onclick="shareDayToGoogleCalendar('${day}')" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
-              分享到 Google 日曆
-            </button>
-          </div>
-          ${exercisesHtml}
-        `;
-      });
-    }
-
-    function createExerciseCard(exercise, index) {
-      const colorClass = exercise.color === 'highlight' ? 'text-orange-200' : 'text-white';
-      const angleTag = exercise.angleTag ? `<span class="badge angle-tag">${exercise.angleTag}</span>` : '';
-      const badge = exercise.badge ? `<span class="badge">${exercise.badge}</span>` : '';
-
-      return `
-        <div class="card">
-          <div class="flex justify-between items-start mb-2">
-            <h3 class="font-bold text-lg ${colorClass}">${index}. ${exercise.name}</h3>
-            ${angleTag || badge}
-          </div>
-          <div class="flex justify-between text-slate-300">
-            <span>重量: <b class="text-white text-xl">${exercise.weight}</b> ${exercise.unit}</span>
-            <span>組數: ${exercise.sets} x ${exercise.reps}+ | ${exercise.restTime}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderTrainingTips() {
-      const tipsHtml = workoutData.metadata.trainingTips.map(tip => {
-        return `
-          <div class="card">
-            <h4 class="font-bold text-sky-400 mb-2">${tip.title}</h4>
-            <p class="text-slate-300 text-sm">${tip.content}</p>
-          </div>
-        `;
-      }).join('');
-
-      document.getElementById('tipsContainer').innerHTML = tipsHtml;
-    }
-
-    function showDay(day) {
-      currentDay = day;
-      document.querySelectorAll('.content-section').forEach(el => el.classList.add('hidden'));
-      document.getElementById('day' + day).classList.remove('hidden');
-
-      ['A', 'B', 'C'].forEach(d => {
-        const btn = document.getElementById('btn' + d);
-        btn.classList.remove('tab-active', 'text-sky-400');
-        btn.classList.add('text-slate-400');
-      });
-      document.getElementById('btn' + day).classList.add('tab-active');
-      document.getElementById('btn' + day).classList.remove('text-slate-400');
-    }
-
-    // Rest timer functions (mostly unchanged)
-    function initRestTimers() {
-      setTimeout(() => {
-        const sections = ['dayA', 'dayB', 'dayC'];
-        sections.forEach(sectionId => {
-          const section = document.getElementById(sectionId);
-          if (!section) return;
-
-          const cards = section.querySelectorAll('.card');
-          cards.forEach(card => {
-            const setInfo = Array.from(card.querySelectorAll('span')).find(el => el.textContent.includes('組數'));
-            if (!setInfo) return;
-
-            const match = setInfo.textContent.match(/\|\s*([\d:]+)\s*$/);
-            if (!match) return;
-
-            const seconds = parseTime(match[1]);
-            if (!seconds || seconds <= 0) return;
-
-            const setMatch = setInfo.textContent.match(/組數:\s*(\d+)\s*[xX]/);
-            const setCount = setMatch ? Number(setMatch[1]) : 1;
-
-            const container = document.createElement('div');
-            container.className = 'mt-3 flex flex-wrap items-center gap-2';
-
-            for (let i = 1; i <= setCount; i += 1) {
-              const btn = document.createElement('button');
-              btn.type = 'button';
-              btn.className = 'rest-btn inline-flex items-center gap-2 px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400 text-white text-sm font-semibold';
-
-              const baseLabel = `第 ${i} 組`;
-              btn.textContent = baseLabel;
-              btn.dataset.baseLabel = baseLabel;
-              btn.dataset.duration = String(seconds);
-              btn.dataset.setIndex = String(i);
-
-              container.appendChild(btn);
-
-              btn.addEventListener('click', () => startRestTimer(btn, seconds));
-            }
-
-            card.appendChild(container);
-          });
-        });
-      }, 100);
-    }
-
-    function parseTime(value) {
-      const parts = value.split(':').map(p => parseInt(p.trim(), 10));
-      if (parts.length === 2) {
-        return parts[0] * 60 + parts[1];
-      }
-      return Number.isFinite(parts[0]) ? parts[0] : 0;
-    }
-
-    function formatTime(seconds) {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-
-    function startRestTimer(btn, totalSeconds) {
-      if (btn.disabled || btn.dataset.completed === 'true') return;
-
-      const section = btn.closest('.content-section');
-      if (section) {
-        const buttons = Array.from(section.querySelectorAll('.rest-btn'));
-        const uncompletedButtons = buttons.filter(b => b.dataset.completed !== 'true');
-        const isLastButton = uncompletedButtons.length === 1 && uncompletedButtons[0] === btn;
-
-        if (isLastButton) {
-          btn.dataset.completed = 'true';
-          completeRestTimer(btn);
-          return;
-        }
-      }
-
-      btn.disabled = true;
-      btn.classList.add('opacity-50', 'cursor-not-allowed');
-
-      const endAt = Date.now() + totalSeconds * 1000;
-      const intervalId = setInterval(() => {
-        const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
-        btn.textContent = formatTime(remaining);
-
-        if (remaining <= 0) {
-          clearInterval(intervalId);
-          completeRestTimer(btn);
-        }
-      }, 250);
-
-      btn.dataset.intervalId = String(intervalId);
-    }
-
-    function completeRestTimer(btn) {
-      btn.textContent = '完成 ✅';
-      btn.dataset.completed = 'true';
-
-      playAlarmThreeTimes();
-      checkAllSetsCompleted(btn);
-    }
-
-    function checkAllSetsCompleted(btn) {
-      const section = btn.closest('.content-section');
+// Rest timer functions with sleek design
+function initRestTimers() {
+  setTimeout(() => {
+    const sections = ['dayA', 'dayB', 'dayC'];
+    sections.forEach(sectionId => {
+      const section = document.getElementById(sectionId);
       if (!section) return;
 
-      const restButtons = Array.from(section.querySelectorAll('.rest-btn'));
-      if (!restButtons.length) return;
+      const cards = section.querySelectorAll('.card');
+      cards.forEach(card => {
+        const restTime = card.dataset.restTime;
+        const setCount = parseInt(card.dataset.setCount || '1', 10);
 
-      const allDone = restButtons.every(btn => btn.dataset.completed === 'true');
-      if (!allDone) return;
+        if (!restTime || setCount <= 0) return;
 
-      if (section.dataset.congratsShown === 'true') return;
-      section.dataset.congratsShown = 'true';
+        const seconds = parseTime(restTime);
+        if (!seconds || seconds <= 0) return;
 
-      showCompletionDialog();
-    }
+        const container = document.createElement('div');
+        container.className = 'mt-4 pt-4 border-t border-slate-700 flex flex-wrap gap-2';
 
-    function showCompletionDialog() {
-      const modal = document.getElementById('completionModal');
-      const shareBtn = document.getElementById('modalShare');
-      const cancelBtn = document.getElementById('modalCancel');
+        for (let i = 1; i <= setCount; i += 1) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'rest-btn group relative inline-flex items-center justify-center px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-800';
 
-      const closeModal = () => modal.classList.add('hidden');
+          const baseLabel = `Set ${i}`;
+          btn.textContent = baseLabel;
+          btn.dataset.baseLabel = baseLabel;
+          btn.dataset.duration = String(seconds);
+          btn.dataset.setIndex = String(i);
+          btn.dataset.completed = 'false';
 
-      shareBtn.onclick = () => {
-        closeModal();
-        shareDayToGoogleCalendar(currentDay);
-      };
-      cancelBtn.onclick = () => closeModal();
+          container.appendChild(btn);
 
-      modal.classList.remove('hidden');
-    }
+          btn.addEventListener('click', () => startRestTimer(btn, seconds));
+        }
 
-    function playAlarmThreeTimes() {
-      const context = new (window.AudioContext || window.webkitAudioContext)();
-      const duration = 0.15;
-      const interval = 0.25;
-
-      for (let i = 0; i < 3; i++) {
-        const start = context.currentTime + i * interval;
-        playBeep(context, start, duration);
-      }
-    }
-
-    function playBeep(context, startTime, duration) {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = 'square';
-      oscillator.frequency.value = 1200;
-      gain.gain.setValueAtTime(0.22, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    }
-
-    // Google Calendar integration (unchanged - uses currentDay which is now properly set)
-    function shareDayToGoogleCalendar(day) {
-      const dayData = workoutData.days[day];
-      if (!dayData) return;
-
-      const focusText = dayData.focus || '';
-      const nextDayMap = { A: 'B', B: 'C', C: 'A' };
-      const nextDay = nextDayMap[day];
-
-      const title = `訓練 ${day} - ${focusText}`;
-      const exercises = dayData.exercises;
-      const lines = exercises.map(exercise => {
-        return `${exercise.name} (${exercise.sets} x ${exercise.reps} | ${exercise.restTime})`;
+        card.appendChild(container);
       });
+    });
+  }, 100);
+}
 
-      const details = `今天的訓練內容：\n${lines.join('\n')}\n\n下次訓練：Day ${nextDay}\n\n查看詳細：https://soft-conkies-e7624a.netlify.app/?day=${nextDay}`;
+function parseTime(value) {
+  const parts = value.split(':').map(p => parseInt(p.trim(), 10));
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return Number.isFinite(parts[0]) ? parts[0] : 0;
+}
 
-      const now = new Date();
-      const startDate = formatDateOnly(now);
-      const endDate = formatDateOnly(new Date(now.getTime() + 24 * 60 * 60 * 1000));
-      const dates = `${startDate}/${endDate}`;
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
 
-      const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`;
-      window.open(webUrl, '_blank');
+function startRestTimer(btn, totalSeconds) {
+  if (btn.disabled || btn.dataset.completed === 'true') return;
+
+  const section = btn.closest('.content-section');
+  if (section) {
+    const buttons = Array.from(section.querySelectorAll('.rest-btn'));
+    const uncompletedButtons = buttons.filter(b => b.dataset.completed !== 'true');
+    const isLastButton = uncompletedButtons.length === 1 && uncompletedButtons[0] === btn;
+
+    if (isLastButton) {
+      btn.dataset.completed = 'true';
+      completeRestTimer(btn);
+      return;
     }
+  }
 
-    function formatDateOnly(date) {
-      const pad = n => String(n).padStart(2, '0');
-      const y = date.getFullYear();
-      const m = pad(date.getMonth() + 1);
-      const d = pad(date.getDate());
-      return `${y}${m}${d}`;
+  btn.disabled = true;
+  btn.classList.remove('from-sky-500', 'to-sky-600', 'hover:from-sky-400', 'hover:to-sky-500');
+  btn.classList.add('from-slate-600', 'to-slate-700', 'opacity-70', 'cursor-not-allowed');
+
+  const endAt = Date.now() + totalSeconds * 1000;
+  const intervalId = setInterval(() => {
+    const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    btn.textContent = formatTime(remaining);
+    btn.classList.add('animate-pulse');
+
+    if (remaining <= 0) {
+      clearInterval(intervalId);
+      btn.classList.remove('animate-pulse');
+      completeRestTimer(btn);
     }
-  </script>
+  }, 250);
+
+  btn.dataset.intervalId = String(intervalId);
+}
+
+function completeRestTimer(btn) {
+  btn.textContent = '✅ Complete';
+  btn.dataset.completed = 'true';
+  btn.classList.remove('from-slate-600', 'to-slate-700', 'opacity-70', 'cursor-not-allowed');
+  btn.classList.add('from-emerald-500', 'to-emerald-600', 'hover:from-emerald-400', 'hover:to-emerald-500', 'shadow-emerald-500/25');
+
+  playAlarmThreeTimes();
+  checkAllSetsCompleted(btn);
+}
+
+function checkAllSetsCompleted(btn) {
+  const section = btn.closest('.content-section');
+  if (!section) return;
+
+  const restButtons = Array.from(section.querySelectorAll('.rest-btn'));
+  if (!restButtons.length) return;
+
+  const allDone = restButtons.every(btn => btn.dataset.completed === 'true');
+  if (!allDone) return;
+
+  if (section.dataset.congratsShown === 'true') return;
+  section.dataset.congratsShown = 'true';
+
+  showCompletionDialog();
+}
+
+function showCompletionDialog() {
+  const modal = document.getElementById('completionModal');
+  const shareBtn = document.getElementById('modalShare');
+  const cancelBtn = document.getElementById('modalCancel');
+
+  const closeModal = () => modal.classList.add('hidden');
+
+  shareBtn.onclick = () => {
+    closeModal();
+    shareDayToGoogleCalendar(currentDay);
+  };
+  cancelBtn.onclick = () => closeModal();
+
+  modal.classList.remove('hidden');
+}
+
+function playAlarmThreeTimes() {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const duration = 0.15;
+  const interval = 0.25;
+
+  for (let i = 0; i < 3; i++) {
+    const start = context.currentTime + i * interval;
+    playBeep(context, start, duration);
+  }
+}
+
+function playBeep(context, startTime, duration) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = 'square';
+  oscillator.frequency.value = 1200;
+  gain.gain.setValueAtTime(0.22, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration);
+}
+
+// Google Calendar integration (unchanged - uses currentDay which is now properly set)
+function shareDayToGoogleCalendar(day) {
+  const dayData = workoutData.days[day];
+  if (!dayData) return;
+
+  const focusText = dayData.focus || '';
+  const nextDayMap = { A: 'B', B: 'C', C: 'A' };
+  const nextDay = nextDayMap[day];
+
+  const title = `訓練 ${day} - ${focusText}`;
+  const exercises = dayData.exercises;
+  const lines = exercises.map(exercise => {
+    return `${exercise.name} (${exercise.sets} x ${exercise.reps} | ${exercise.restTime})`;
+  });
+
+  const details = `今天的訓練內容：\n${lines.join('\n')}\n\n下次訓練：Day ${nextDay}\n\n查看詳細：https://soft-conkies-e7624a.netlify.app/?day=${nextDay}`;
+
+  const now = new Date();
+  const startDate = formatDateOnly(now);
+  const endDate = formatDateOnly(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  const dates = `${startDate}/${endDate}`;
+
+  const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`;
+  window.open(webUrl, '_blank');
+}
+
+function formatDateOnly(date) {
+  const pad = n => String(n).padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  return `${y}${m}${d}`;
+}
+</script>
 </body>
 </html>
