@@ -16,11 +16,155 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
 }
 
 .tab-active { border-bottom: 4px solid #38bdf8; color: #38bdf8; }
-.card { background: #1e293b; border-radius: 12px; margin-bottom: 1rem; padding: 1rem; border: 1px solid #334155; }
+.card { background: #1e293b; border-radius: 12px; margin-bottom: 1rem; padding: 1rem; border: 1px solid #334155; cursor: grab; transition: all 0.3s ease; overflow: hidden; position: relative; }
+.card:active { cursor: grabbing; }
+.card.swiping { transition: none; }
+.card.all-complete { background: linear-gradient(135deg, #065f46 0%, #047857 100%); border-color: #10b981; }
 .badge { background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #94a3b8; }
 .angle-tag { color: #fbbf24; font-weight: bold; }
 .loading { text-align: center; padding: 2rem; color: #94a3b8; }
 .error { text-align: center; padding: 2rem; color: #ef4444; }
+
+/* Set indicators */
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: rgb(100, 116, 139, 0.3);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+.dot.completed {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  animation: dotPulse 0.6s ease-out;
+}
+.dot.active {
+  background: rgb(14, 165, 233, 0.5);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.4);
+}
+.dot.timer-active::after {
+  content: attr(data-timer);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 16px);
+  transform: translateY(-50%);
+  background: #1e293b;
+  color: #fbbf24;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  min-width: 32px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Progress bar */
+.progress-container { width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; margin: 12px 0; }
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9 0%, #fbbf24 50%, #10b981 100%);
+  background-size: 200% 100%;
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  border-radius: 2px;
+}
+.progress-bar.animated {
+  animation: shimmer 2s ease-in-out;
+}
+
+/* Day progress */
+.day-progress-container { position: fixed; top: 50%; right: 20px; width: 200px; background: rgba(30, 41, 59, 0.8);
+  border-radius: 8px; padding: 12px; border: 1px solid #334155; backdrop-filter: blur(8px); z-index: 10; }
+.day-progress-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; text-align: center; }
+.day-progress-track { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+.day-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9 0%, #fbbf24 50%, #10b981 100%);
+  background-size: 200% 100%;
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+/* Completion badge */
+.completion-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  transform: scale(0);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s;
+}
+.completion-badge.show { transform: scale(1); }
+
+/* Auth token input */
+#recallApiToken {
+  width: 100%;
+  padding: 8px 12px;
+  background: #334155;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 14px;
+  margin: 8px 0 12px 0;
+}
+#recallApiToken::placeholder { color: #94a3b8; }
+
+/* Animation keyframes */
+@keyframes dotPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.2); }
+  100% { transform: scale(1); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); }
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes swipeReveal {
+  0% { transform: translateX(0) rotate(0); }
+  50% { transform: translateX(40px) rotate(2deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes celebrate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* Swipe visual feedback */
+.swipe-layer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, #10b981 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.card.swiping .swipe-layer { opacity: 0.3; }
+
+/* Hidden accessible buttons */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+@media (max-width: 768px) {
+  .day-progress-container { position: static; margin-bottom: 20px; width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -51,7 +195,7 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
 
   <!-- Training Notes Section -->
   <div class="mt-10 pt-6 border-t border-slate-700" id="trainingTips">
-    <h2 class="text-xl font-bold text-white mb-4">💡 訓練備註 (Training Tips)</h2>
+    <h2 class="text-xl font-bold text-white mb-3">💡 訓練備註 (Training Tips)</h2>
     <div class="space-y-3" id="tipsContainer">
       <!-- Tips will be dynamically loaded -->
     </div>
@@ -62,7 +206,7 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
 <div id="completionModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 p-4">
   <div class="w-full max-w-md rounded-xl bg-slate-800 p-6 text-white shadow-lg">
     <h2 class="text-xl font-bold mb-2">🎉 恭喜完成！</h2>
-    <p class="text-slate-200 mb-4">你已完成今天的所有訓練，想把這次訓練分享到日曆嗎？</p>
+    <p class="text-slate-200 mb-3">你已完成今天的所有訓練，想把這次訓練分享到日曆嗎？</p>
     <div class="flex justify-end gap-2">
       <button id="modalCancel" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-500">不用了</button>
       <button id="modalShare" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">分享到 Calendar</button>
@@ -110,8 +254,10 @@ function initializeApp() {
   // Render training tips
   renderTrainingTips();
 
-  // Initialize rest timers
-  initRestTimers();
+  // Initialize swipe gestures and progress tracking
+  initSwipeGestures();
+  initProgressTracking();
+  updateDayProgress();
 
   // Check URL parameters
   const urlParams = new URLSearchParams(window.location.search);
@@ -130,8 +276,8 @@ function renderDays() {
     }).join('');
 
     container.innerHTML = `
-    <div class="mb-4 text-sky-400 font-semibold italic text-sm">焦點：${dayData.focus}</div>
-    <div class="mb-4">
+    <div class="mb-3 text-sky-400 font-semibold italic text-sm">焦點：${dayData.focus}</div>
+    <div class="mb-3">
       <button onclick="shareDayToGoogleCalendar('${day}')" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
        分享到 Google 日曆
       </button>
@@ -145,12 +291,30 @@ function createExerciseCard(exercise, index) {
   const colorClass = exercise.color === 'highlight' ? 'text-orange-200' : 'text-white';
   const angleTag = exercise.angleTag ? `<span class="badge angle-tag">${exercise.angleTag}</span>` : '';
   const badge = exercise.badge ? `<span class="badge">${exercise.badge}</span>` : '';
+  const exerciseId = `exercise-${Date.now()}-${index}`;
+
+  // Generate dots
+  let dotsHtml = '';
+  for (let i = 0; i < exercise.sets; i++) {
+    dotsHtml += '<div class="dot" data-set="' + (i + 1) + '"></div>';
+  }
 
   return `
-  <div class="card" data-rest-time="${exercise.restTime}" data-set-count="${exercise.sets}">
-    <div class="flex justify-between items-start mb-4">
-      <h3 class="font-bold text-xl ${colorClass}">${index}. ${exercise.name}</h3>
+  <div class="card" data-exercise-id="${exerciseId}" data-rest-time="${exercise.restTime}"
+       data-set-count="${exercise.sets}" data-sets-completed="0" data-current-set="1">
+    <div class="swipe-layer"></div>
+    <div class="completion-badge">✅ 完成</div>
+    <div class="flex justify-between items-start mb-3">
+      <h3 class="font-bold text-xl ${colorClass}" data-exercise-name>${index}. ${exercise.name}</h3>
       ${angleTag || badge}
+    </div>
+    <div class="flex justify-between items-center mb-0">
+      <div class="dots-container flex gap-3 justify-center mb-0 p-2 bg-slate-900/50 rounded-lg">
+        ${dotsHtml}
+      </div>
+    </div>
+    <div class="progress-container mx-1">
+      <div class="progress-bar" style="width: 0%"></div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
@@ -206,50 +370,9 @@ function showDay(day) {
   document.getElementById('btn' + day).classList.remove('text-slate-400');
 }
 
-// Rest timer functions with sleek design
-function initRestTimers() {
-  setTimeout(() => {
-    const sections = ['dayA', 'dayB', 'dayC'];
-    sections.forEach(sectionId => {
-      const section = document.getElementById(sectionId);
-      if (!section) return;
 
-      const cards = section.querySelectorAll('.card');
-      cards.forEach(card => {
-        const restTime = card.dataset.restTime;
-        const setCount = parseInt(card.dataset.setCount || '1', 10);
 
-        if (!restTime || setCount <= 0) return;
-
-        const seconds = parseTime(restTime);
-        if (!seconds || seconds <= 0) return;
-
-        const container = document.createElement('div');
-        container.className = 'mt-4 pt-4 border-t border-slate-700 flex flex-wrap gap-2';
-
-        for (let i = 1; i <= setCount; i += 1) {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'rest-btn group relative inline-flex items-center justify-center px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-800';
-
-          const baseLabel = `Set ${i}`;
-          btn.textContent = baseLabel;
-          btn.dataset.baseLabel = baseLabel;
-          btn.dataset.duration = String(seconds);
-          btn.dataset.setIndex = String(i);
-          btn.dataset.completed = 'false';
-
-          container.appendChild(btn);
-
-          btn.addEventListener('click', () => startRestTimer(btn, seconds));
-        }
-
-        card.appendChild(container);
-      });
-    });
-  }, 100);
-}
-
+// Timer functions - used exclusively by the swipe gesture system (initRestTimers removed)
 function parseTime(value) {
   const parts = value.split(':').map(p => parseInt(p.trim(), 10));
   if (parts.length === 2) {
@@ -399,6 +522,352 @@ function formatDateOnly(date) {
   const d = pad(date.getDate());
   return `${y}${m}${d}`;
 }
+
+// Enhanced swipe gesture system with rich animations
+function initSwipeGestures() {
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.card');
+
+    cards.forEach(card => {
+      let isPointerDown = false;
+      let startX = 0;
+      let currentX = 0;
+      let hasMoved = false;
+
+      // Touch events - primary
+      card.addEventListener('touchstart', handleStart, { passive: false });
+      card.addEventListener('touchmove', handleMove, { passive: false });
+      card.addEventListener('touchend', handleEnd, { passive: false });
+      card.addEventListener('touchcancel', handleEnd, { passive: false });
+
+      // Mouse events - fallback
+      card.addEventListener('mousedown', handleStart);
+      card.addEventListener('mousemove', handleMove);
+      card.addEventListener('mouseup', handleEnd);
+      card.addEventListener('mouseleave', handleEnd);
+
+      function handleStart(e) {
+        // Don't allow swipe if already complete
+        if (card.classList.contains('all-complete')) return;
+
+        isPointerDown = true;
+        hasMoved = false;
+        startX = getEventX(e);
+        currentX = startX;
+        card.classList.add('swiping');
+      }
+
+      function handleMove(e) {
+        if (!isPointerDown) return;
+
+        e.preventDefault();
+        hasMoved = true;
+        currentX = getEventX(e);
+        const deltaX = currentX - startX;
+
+        // Only respond to horizontal swipes
+        if (Math.abs(deltaX) < 10) return;
+
+        const maxTranslate = card.offsetWidth * 0.5;
+        const translateX = Math.max(0, Math.min(maxTranslate, Math.abs(deltaX)));
+
+        card.style.transform = `translateX(${translateX}px) rotate(${Math.min(2, translateX / 20)}deg)`;
+      }
+
+      function handleEnd(e) {
+        if (!isPointerDown) return;
+
+        isPointerDown = false;
+        card.classList.remove('swiping');
+
+        const deltaX = Math.abs(currentX - startX);
+        const threshold = card.offsetWidth * 0.3; // 30% threshold
+
+        if (deltaX >= threshold && hasMoved) {
+          // Complete set - threshold met
+          completeSet(card);
+        } else {
+          // Cancel - spring back
+          card.style.transform = '';
+        }
+      }
+
+      function getEventX(e) {
+        return e.touches ? e.touches[0].clientX : e.clientX;
+      }
+
+      // Keyboard support
+      card.setAttribute('tabindex', '0');
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          completeSet(card);
+        }
+      });
+    });
+  }, 200);
+}
+
+function completeSet(card) {
+  const setsTotal = parseInt(card.dataset.setCount || '0', 10);
+  let setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+  const currentSet = parseInt(card.dataset.currentSet || '1', 10);
+
+  if (setsCompleted >= setsTotal) {
+    // All sets already complete
+    card.style.transform = '';
+    return;
+  }
+
+  // Update set counters
+  setsCompleted++;
+  card.dataset.setsCompleted = setsCompleted;
+
+  // Animate completion
+  setCompleteAnimation(card, currentSet);
+
+  // Update progress
+  updateExerciseProgress(card, setsCompleted);
+  updateDayProgress();
+
+  // Start rest timer (if not the last set)
+  if (setsCompleted < setsTotal) {
+    const restTimeSeconds = parseTime(card.dataset.restTime);
+    if (restTimeSeconds > 0) {
+      startRestTimerForSet(card, restTimeSeconds, setsCompleted + 1);
+    }
+    card.dataset.currentSet = setsCompleted + 1;
+  } else {
+    // All sets complete
+    allSetsComplete(card);
+  }
+
+  // Spring back animation
+  card.style.transform = '';
+  card.animate(
+    [
+      { transform: 'scale(1)', offset: 0 },
+      { transform: 'scale(1.02)', offset: 0.5 },
+      { transform: 'scale(1)', offset: 1 }
+    ],
+    { duration: 300, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+  );
+}
+
+function setCompleteAnimation(card, setIndex) {
+  const dots = card.querySelectorAll('.dot');
+  const targetDot = dots[setIndex - 1];
+
+  if (targetDot) {
+    targetDot.classList.add('completed');
+    targetDot.classList.remove('active');
+
+    // Add a class to trigger CSS animation
+    setTimeout(() => {
+      targetDot.classList.remove('completed');
+      targetDot.classList.add('completed');
+    }, 10);
+  }
+}
+
+function startRestTimerForSet(card, totalSeconds, setNumber) {
+  const dots = card.querySelectorAll('.dot');
+  const activeDot = dots[setNumber - 1];
+
+  if (!activeDot) return;
+
+  activeDot.classList.add('active', 'timer-active');
+
+  const endAt = Date.now() + totalSeconds * 1000;
+  const intervalId = setInterval(() => {
+    const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    activeDot.setAttribute('data-timer', formatTime(remaining));
+
+    if (remaining <= 0) {
+      clearInterval(intervalId);
+      activeDot.classList.remove('active', 'timer-active');
+      activeDot.removeAttribute('data-timer');
+      playAlarmThreeTimes();
+    }
+  }, 250);
+}
+
+function updateExerciseProgress(card, completedSets) {
+  const totalSets = parseInt(card.dataset.setCount || '0', 10);
+  const progressBar = card.querySelector('.progress-bar');
+
+  if (!progressBar || totalSets === 0) return;
+
+  const percentage = (completedSets / totalSets) * 100;
+  progressBar.classList.add('animated');
+  progressBar.style.width = `${percentage}%`;
+
+  setTimeout(() => {
+    progressBar.classList.remove('animated');
+  }, 500);
+}
+
+function allSetsComplete(card) {
+  card.classList.add('all-complete');
+  card.classList.add('celebrating');
+
+  // Show completion badge
+  const badge = card.querySelector('.completion-badge');
+  if (badge) {
+    badge.classList.add('show');
+  }
+
+  // Celebration animation
+  card.animate([
+    { transform: 'scale(1)', offset: 0 },
+    { transform: 'scale(1.04)', offset: 0.5 },
+    { transform: 'scale(1)', offset: 1 }
+  ], {
+    duration: 600,
+    easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+  });
+
+  // Update exercise name to show completion
+  const nameEl = card.querySelector('[data-exercise-name]');
+  if (nameEl && !nameEl.textContent.includes('✅')) {
+    const nameText = nameEl.textContent;
+    nameEl.innerHTML = nameText.replace(/\d+\.\s*/, '$&✅ ');
+  }
+
+  // Remove celebration class after animation
+  setTimeout(() => {
+    card.classList.remove('celebrating');
+  }, 600);
+
+  // Check if entire day is complete
+  checkAllExercisesCompleted();
+}
+
+function checkAllExercisesCompleted() {
+  const sections = ['dayA', 'dayB', 'dayC'];
+  const currentSection = document.getElementById(`day${currentDay}`);
+  if (!currentSection) return;
+
+  const cards = Array.from(currentSection.querySelectorAll('.card'));
+  const exercisesCount = cards.length;
+  const completeExercises = cards.filter(card =>
+    parseInt(card.dataset.setsCompleted || '0', 10) >=
+    parseInt(card.dataset.setCount || '0', 10)
+  ).length;
+
+  if (exercisesCount > 0 && completeExercises === exercisesCount) {
+    // All exercises complete for this day
+    setTimeout(() => {
+      showCompletionDialog();
+    }, 800);
+  }
+}
+
+function initProgressTracking() {
+  // Load saved progress from localStorage
+  const savedProgress = localStorage.getItem(`workout-progress-day${currentDay}`);
+  if (savedProgress) {
+    try {
+      const progressData = JSON.parse(savedProgress);
+      applySavedProgress(progressData);
+    } catch (e) {
+      console.log('No valid saved progress found');
+    }
+  }
+}
+
+function applySavedProgress(progressData) {
+  Object.entries(progressData).forEach(([exerciseId, {setsCompleted, currentSet}]) => {
+    const card = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+    if (card) {
+      card.dataset.setsCompleted = setsCompleted;
+      card.dataset.currentSet = currentSet;
+
+      // Update dots
+      const dots = card.querySelectorAll('.dot');
+      dots.forEach((dot, index) => {
+        if (index < setsCompleted) {
+          dot.classList.add('completed');
+        }
+      });
+
+      // Update progress bar
+      updateExerciseProgress(card, setsCompleted);
+
+      // Mark as complete if all sets done
+      if (setsCompleted >= parseInt(card.dataset.setCount || '0', 10)) {
+        allSetsComplete(card);
+      }
+    }
+  });
+
+  updateDayProgress();
+}
+
+function saveProgress() {
+  const cards = document.querySelectorAll('.card');
+  const progressData = {};
+
+  cards.forEach(card => {
+    const exerciseId = card.dataset.exerciseId;
+    const setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+    const currentSet = parseInt(card.dataset.currentSet || '1', 10);
+
+    if (setsCompleted > 0 || currentSet > 1) {
+      progressData[exerciseId] = {
+        setsCompleted,
+        currentSet,
+        timestamp: Date.now()
+      };
+    }
+  });
+
+  localStorage.setItem(`workout-progress-day${currentDay}`, JSON.stringify(progressData));
+}
+
+function updateDayProgress() {
+  const currentSection = document.getElementById(`day${currentDay}`);
+  if (!currentSection) return;
+
+  const cards = Array.from(currentSection.querySelectorAll('.card'));
+  if (cards.length === 0) return;
+
+  let totalSets = 0;
+  let completedSets = 0;
+
+  cards.forEach(card => {
+    const cardTotal = parseInt(card.dataset.setCount || '0', 10);
+    const cardCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+    totalSets += cardTotal;
+    completedSets += cardCompleted;
+  });
+
+  const percentage = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
+
+  // Update UI
+  const progressBar = document.getElementById('dayProgressBar');
+  const progressLabel = document.getElementById('dayProgressLabel');
+
+  if (progressBar && progressLabel) {
+    progressBar.style.width = `${percentage}%`;
+    progressLabel.textContent = `Day ${currentDay} 進度：${percentage}%`;
+  }
+
+  // Auto-save progress
+  setTimeout(saveProgress, 100);
+}
+
+// Override the completion detection for backward compatibility
+// Keep the button-based completion working alongside swipe
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('rest-btn')) {
+    // Check completion after button interaction
+    setTimeout(() => {
+      checkAllExercisesCompleted();
+      updateDayProgress();
+    }, 500);
+  }
+}, true);
 </script>
 </body>
 </html>
