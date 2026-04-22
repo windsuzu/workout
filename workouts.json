@@ -5,7 +5,7 @@
       "exercises": [
         {
           "name": "啞鈴臥推 (Bench)",
-          "weight": 18,
+          "weight": 20.5,
           "unit": "kg",
           "sets": 2,
           "reps": 12,
@@ -38,7 +38,7 @@
         },
         {
           "name": "高次數肩推 (Shoulder)",
-          "weight": 9,
+          "weight": 11.5,
           "unit": "kg",
           "sets": 2,
           "reps": 15,
