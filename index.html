@@ -20,6 +20,27 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
 .card:active { cursor: grabbing; }
 .card.swiping { transition: none; }
 .card.all-complete { background: linear-gradient(135deg, #065f46 0%, #047857 100%); border-color: #10b981; }
+.card.timer-active { cursor: not-allowed; opacity: 0.85; position: relative; }
+.card.timer-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 12px;
+  pointer-events: none;
+}
+.card.timer-active:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #334155 !important;
+}
+.card.timer-active .dot.active.timer-active {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 .badge { background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #94a3b8; }
 .angle-tag { color: #fbbf24; font-weight: bold; }
 .loading { text-align: center; padding: 2rem; color: #94a3b8; }
@@ -547,8 +568,9 @@ function initSwipeGestures() {
       card.addEventListener('mouseleave', handleEnd);
 
       function handleStart(e) {
-        // Don't allow swipe if already complete
+        // Don't allow swipe if already complete OR timer is active
         if (card.classList.contains('all-complete')) return;
+        if (card.dataset.timerActive === 'true') return;
 
         isPointerDown = true;
         hasMoved = false;
@@ -626,20 +648,19 @@ function completeSet(card) {
   // Animate completion
   setCompleteAnimation(card, currentSet);
 
-  // Update progress
+  // Update progress (but don't complete the card yet even if setsCompleted >= setsTotal)
   updateExerciseProgress(card, setsCompleted);
   updateDayProgress();
 
-  // Start rest timer (if not the last set)
-  if (setsCompleted < setsTotal) {
+  // Start rest timer for the next set if there are more sets OR if this is the last set
+  if (setsCompleted <= setsTotal) {
     const restTimeSeconds = parseTime(card.dataset.restTime);
     if (restTimeSeconds > 0) {
-      startRestTimerForSet(card, restTimeSeconds, setsCompleted + 1);
+      startRestTimerForSet(card, restTimeSeconds, setsCompleted);
     }
-    card.dataset.currentSet = setsCompleted + 1;
-  } else {
-    // All sets complete
-    allSetsComplete(card);
+    if (setsCompleted < setsTotal) {
+      card.dataset.currentSet = setsCompleted + 1;
+    }
   }
 
   // Spring back animation
@@ -661,6 +682,8 @@ function setCompleteAnimation(card, setIndex) {
   if (targetDot) {
     targetDot.classList.add('completed');
     targetDot.classList.remove('active');
+    targetDot.classList.remove('timer-active');
+    targetDot.removeAttribute('data-timer');
 
     // Add a class to trigger CSS animation
     setTimeout(() => {
@@ -671,11 +694,16 @@ function setCompleteAnimation(card, setIndex) {
 }
 
 function startRestTimerForSet(card, totalSeconds, setNumber) {
+  // Mark timer as active on the card
+  card.dataset.timerActive = 'true';
+  card.classList.add('timer-active');
+
   const dots = card.querySelectorAll('.dot');
   const activeDot = dots[setNumber - 1];
 
   if (!activeDot) return;
 
+  // Add active and timer-active to show timer on the dot (dot should already have 'completed' class)
   activeDot.classList.add('active', 'timer-active');
 
   const endAt = Date.now() + totalSeconds * 1000;
@@ -687,7 +715,23 @@ function startRestTimerForSet(card, totalSeconds, setNumber) {
       clearInterval(intervalId);
       activeDot.classList.remove('active', 'timer-active');
       activeDot.removeAttribute('data-timer');
+
+      // Clear timer state
+      card.dataset.timerActive = 'false';
+      card.classList.remove('timer-active');
+
       playAlarmThreeTimes();
+
+      // Mark set as fully completed
+      const setsTotal = parseInt(card.dataset.setCount || '0', 10);
+      const setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+
+      // Check if all sets are complete after timer finishes
+      // Note: for the last set, setsCompleted will equal setsTotal at this point
+      // For non-last sets, allSetsComplete won't be called
+      if (setsCompleted === setsTotal) {
+        allSetsComplete(card);
+      }
     }
   }, 250);
 }
@@ -748,6 +792,9 @@ function checkAllExercisesCompleted() {
   const currentSection = document.getElementById(`day${currentDay}`);
   if (!currentSection) return;
 
+  // Guard against multiple triggers
+  if (currentSection.dataset.congratsShown === 'true') return;
+
   const cards = Array.from(currentSection.querySelectorAll('.card'));
   const exercisesCount = cards.length;
   const completeExercises = cards.filter(card =>
@@ -756,6 +803,7 @@ function checkAllExercisesCompleted() {
   ).length;
 
   if (exercisesCount > 0 && completeExercises === exercisesCount) {
+    currentSection.dataset.congratsShown = 'true';
     // All exercises complete for this day
     setTimeout(() => {
       showCompletionDialog();
