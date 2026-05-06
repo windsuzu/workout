@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 * { box-sizing: border-box; }
-body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
+body { background-color: #090e1a; color: #e2e8f0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .container { margin: 0 auto !important; width: 50% !important; }
 
 /* 手機及平板：全寬 */
@@ -16,11 +16,11 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
 }
 
 .tab-active { border-bottom: 4px solid #38bdf8; color: #38bdf8; }
-.card { background: #1e293b; border-radius: 12px; margin-bottom: 1rem; padding: 1rem; border: 1px solid #334155; cursor: grab; transition: all 0.3s ease; overflow: hidden; position: relative; }
+.card { background: #111827; border-radius: 18px; padding: 0.6rem; border: 1px solid rgba(148, 163, 184, 0.12); cursor: grab; transition: all 0.25s ease; overflow: hidden; position: relative; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18); height: 120px; }
 .card:active { cursor: grabbing; }
 .card.swiping { transition: none; }
-.card.all-complete { background: linear-gradient(135deg, #065f46 0%, #047857 100%); border-color: #10b981; }
-.card.timer-active { cursor: not-allowed; opacity: 0.85; position: relative; }
+.card.all-complete { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25); box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.12); }
+.card.timer-active { cursor: not-allowed; opacity: 0.95; position: relative; }
 .card.timer-active::after {
   content: '';
   position: absolute;
@@ -41,15 +41,22 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
-.badge { background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #94a3b8; }
-.angle-tag { color: #fbbf24; font-weight: bold; }
+.badge { background: rgba(148, 163, 184, 0.15); padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; color: #cbd5e1; }
+.complete-set-btn { background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(148, 163, 184, 0.14); color: #e2e8f0; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); aspect-ratio: 1; height: 120px; }
+.complete-set-btn:hover { background: rgba(148, 163, 184, 0.12); border-color: rgba(148, 163, 184, 0.20); }
+.complete-set-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.angle-tag { color: #84cc16; font-weight: 700; }
 .loading { text-align: center; padding: 2rem; color: #94a3b8; }
 .error { text-align: center; padding: 2rem; color: #ef4444; }
 
 /* Set indicators */
+.dots-container {
+  min-height: 28px;
+  padding: 0.15rem 0.35rem;
+}
 .dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 9999px;
   background: rgb(100, 116, 139, 0.3);
   transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -81,18 +88,25 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
   font-weight: 600;
 }
 
-/* Progress bar */
-.progress-container { width: 100%; height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; margin: 12px 0; }
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #0ea5e9 0%, #fbbf24 50%, #10b981 100%);
-  background-size: 200% 100%;
-  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  position: relative;
-  border-radius: 2px;
+/* Card progress overlay */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: var(--progress, 0%);
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.10) 0%, rgba(16, 185, 129, 0.08) 35%, rgba(250, 204, 21, 0.06) 100%);
+  transition: width 0.35s ease;
+  pointer-events: none;
+  transform-origin: left;
 }
-.progress-bar.animated {
-  animation: shimmer 2s ease-in-out;
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+.card.all-complete::before {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(74, 222, 128, 0.12) 45%, rgba(219, 234, 254, 0.08) 100%);
 }
 
 /* Day progress */
@@ -107,22 +121,6 @@ body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
   transition: width 0.5s ease;
   border-radius: 3px;
 }
-
-/* Completion badge */
-.completion-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: bold;
-  transform: scale(0);
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s;
-}
-.completion-badge.show { transform: scale(1); }
 
 /* Auth token input */
 #recallApiToken {
@@ -275,8 +273,8 @@ function initializeApp() {
   // Render training tips
   renderTrainingTips();
 
-  // Initialize swipe gestures and progress tracking
-  initSwipeGestures();
+  // Initialize button-driven set completion and progress tracking
+  initActionButtons();
   initProgressTracking();
   updateDayProgress();
 
@@ -321,45 +319,41 @@ function createExerciseCard(exercise, index) {
   }
 
   return `
-  <div class="card" data-exercise-id="${exerciseId}" data-rest-time="${exercise.restTime}"
-       data-set-count="${exercise.sets}" data-sets-completed="0" data-current-set="1">
-    <div class="swipe-layer"></div>
-    <div class="completion-badge">✅ 完成</div>
-    <div class="flex justify-between items-start mb-3">
-      <h3 class="font-bold text-xl ${colorClass}" data-exercise-name>${index}. ${exercise.name}</h3>
-      ${angleTag || badge}
-    </div>
-    <div class="flex justify-between items-center mb-0">
-      <div class="dots-container flex gap-3 justify-center mb-0 p-2 bg-slate-900/50 rounded-lg">
-        ${dotsHtml}
+  <div class="exercise-container flex gap-3 mb-3">
+    <div class="card flex-1" data-exercise-id="${exerciseId}" data-rest-time="${exercise.restTime}"
+         data-set-count="${exercise.sets}" data-sets-completed="0" data-current-set="1">
+      <div class="swipe-layer"></div>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="font-bold text-base ${colorClass} leading-tight" data-exercise-name>${index}. ${exercise.name}</h3>
+          <div class="dots-container flex gap-1 items-center">
+            ${dotsHtml}
+          </div>
+        </div>
+        ${angleTag || badge}
       </div>
-    </div>
-    <div class="progress-container mx-1">
-      <div class="progress-bar" style="width: 0%"></div>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-        <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Weight</div>
-        <div class="flex items-baseline gap-2">
-          <span class="text-2xl font-bold text-sky-400">${exercise.weight}</span>
-          <span class="text-sm text-slate-400">${exercise.unit}</span>
+      <div class="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-200">
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Weight</span>
+          <span class="font-semibold text-sky-400">${exercise.weight}${exercise.unit}</span>
         </div>
-      </div>
-      <div class="flex gap-3">
-        <div class="flex-1 bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-          <div class="text-xs text-slate-400 uppercase tracking-wider">Sets</div>
-          <div class="text-lg font-semibold text-emerald-400">${exercise.sets}</div>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Sets</span>
+          <span class="font-semibold text-emerald-400">${exercise.sets}</span>
         </div>
-        <div class="flex-1 bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-          <div class="text-xs text-slate-400 uppercase tracking-wider">Reps</div>
-          <div class="text-lg font-semibold text-violet-400">${exercise.reps}+</div>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Reps</span>
+          <span class="font-semibold text-violet-400">${exercise.reps}+</span>
         </div>
-        <div class="flex-1 bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-          <div class="text-xs text-slate-400 uppercase tracking-wider">Rest</div>
-          <div class="text-lg font-semibold text-amber-400">${exercise.restTime}</div>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Rest</span>
+          <span class="font-semibold text-amber-400">${exercise.restTime}</span>
         </div>
       </div>
     </div>
+    <button type="button" class="complete-set-btn w-[120px] h-[120px] flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-all duration-200" data-exercise-id="${exerciseId}">
+      完成第 1 組
+    </button>
   </div>
   `;
 }
@@ -545,89 +539,56 @@ function formatDateOnly(date) {
 }
 
 // Enhanced swipe gesture system with rich animations
-function initSwipeGestures() {
-  setTimeout(() => {
-    const cards = document.querySelectorAll('.card');
+function initActionButtons() {
+  const cards = document.querySelectorAll('.card');
 
-    cards.forEach(card => {
-      let isPointerDown = false;
-      let startX = 0;
-      let currentX = 0;
-      let hasMoved = false;
+  cards.forEach(card => {
+    const button = card.parentElement.querySelector('.complete-set-btn');
+    if (!button) return;
 
-      // Touch events - primary
-      card.addEventListener('touchstart', handleStart, { passive: false });
-      card.addEventListener('touchmove', handleMove, { passive: false });
-      card.addEventListener('touchend', handleEnd, { passive: false });
-      card.addEventListener('touchcancel', handleEnd, { passive: false });
-
-      // Mouse events - fallback
-      card.addEventListener('mousedown', handleStart);
-      card.addEventListener('mousemove', handleMove);
-      card.addEventListener('mouseup', handleEnd);
-      card.addEventListener('mouseleave', handleEnd);
-
-      function handleStart(e) {
-        // Don't allow swipe if already complete OR timer is active
-        if (card.classList.contains('all-complete')) return;
-        if (card.dataset.timerActive === 'true') return;
-
-        isPointerDown = true;
-        hasMoved = false;
-        startX = getEventX(e);
-        currentX = startX;
-        card.classList.add('swiping');
-      }
-
-      function handleMove(e) {
-        if (!isPointerDown) return;
-
-        e.preventDefault();
-        hasMoved = true;
-        currentX = getEventX(e);
-        const deltaX = currentX - startX;
-
-        // Only respond to horizontal swipes
-        if (Math.abs(deltaX) < 10) return;
-
-        const maxTranslate = card.offsetWidth * 0.5;
-        const translateX = Math.max(0, Math.min(maxTranslate, Math.abs(deltaX)));
-
-        card.style.transform = `translateX(${translateX}px) rotate(${Math.min(2, translateX / 20)}deg)`;
-      }
-
-      function handleEnd(e) {
-        if (!isPointerDown) return;
-
-        isPointerDown = false;
-        card.classList.remove('swiping');
-
-        const deltaX = Math.abs(currentX - startX);
-        const threshold = card.offsetWidth * 0.3; // 30% threshold
-
-        if (deltaX >= threshold && hasMoved) {
-          // Complete set - threshold met
-          completeSet(card);
-        } else {
-          // Cancel - spring back
-          card.style.transform = '';
-        }
-      }
-
-      function getEventX(e) {
-        return e.touches ? e.touches[0].clientX : e.clientX;
-      }
-
-      // Keyboard support
-      card.setAttribute('tabindex', '0');
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          completeSet(card);
-        }
-      });
+    button.addEventListener('click', () => {
+      if (card.classList.contains('all-complete')) return;
+      if (card.dataset.timerActive === 'true') return;
+      completeSet(card);
     });
-  }, 200);
+
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !card.classList.contains('all-complete') && card.dataset.timerActive !== 'true') {
+        e.preventDefault();
+        completeSet(card);
+      }
+    });
+
+    updateActionButtonLabel(card);
+  });
+}
+
+function updateActionButtonLabel(card) {
+  const button = card.parentElement.querySelector('.complete-set-btn');
+  if (!button) return;
+
+  const totalSets = parseInt(card.dataset.setCount || '0', 10);
+  const setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+  const currentSet = parseInt(card.dataset.currentSet || '1', 10);
+  const timerActive = card.dataset.timerActive === 'true';
+
+  if (setsCompleted >= totalSets) {
+    button.textContent = '已完成';
+    button.disabled = true;
+    button.classList.add('opacity-70', 'cursor-not-allowed');
+    return;
+  }
+
+  if (timerActive) {
+    button.textContent = '休息中...';
+    button.disabled = true;
+    button.classList.add('opacity-70', 'cursor-not-allowed');
+  } else {
+    button.textContent = `完成第 ${currentSet} 組`;
+    button.disabled = false;
+    button.classList.remove('opacity-70', 'cursor-not-allowed');
+  }
 }
 
 function completeSet(card) {
@@ -648,23 +609,30 @@ function completeSet(card) {
   // Animate completion
   setCompleteAnimation(card, currentSet);
 
-  // Update progress (but don't complete the card yet even if setsCompleted >= setsTotal)
   updateExerciseProgress(card, setsCompleted);
   updateDayProgress();
 
-  // Start rest timer for the next set if there are more sets OR if this is the last set
-  if (setsCompleted <= setsTotal) {
-    const restTimeSeconds = parseTime(card.dataset.restTime);
-    if (restTimeSeconds > 0) {
+  const section = card.closest('.content-section');
+  const allDoneInSection = section ? Array.from(section.querySelectorAll('.card')).every(c => {
+    const completed = parseInt(c.dataset.setsCompleted || '0', 10);
+    const total = parseInt(c.dataset.setCount || '0', 10);
+    return completed >= total;
+  }) : false;
+
+  const restTimeSeconds = parseTime(card.dataset.restTime);
+  if (setsCompleted >= setsTotal) {
+    allSetsComplete(card);
+    if (!allDoneInSection && restTimeSeconds > 0) {
       startRestTimerForSet(card, restTimeSeconds, setsCompleted);
     }
-    if (setsCompleted < setsTotal) {
-      card.dataset.currentSet = setsCompleted + 1;
-    }
+  } else if (restTimeSeconds > 0) {
+    card.dataset.currentSet = setsCompleted + 1;
+    startRestTimerForSet(card, restTimeSeconds, setsCompleted);
   }
 
-  // Spring back animation
-  card.style.transform = '';
+  updateActionButtonLabel(card);
+
+  // Button feedback animation
   card.animate(
     [
       { transform: 'scale(1)', offset: 0 },
@@ -707,59 +675,45 @@ function startRestTimerForSet(card, totalSeconds, setNumber) {
   activeDot.classList.add('active', 'timer-active');
 
   const endAt = Date.now() + totalSeconds * 1000;
+  const button = card.parentElement.querySelector('.complete-set-btn');
+  if (button) {
+    button.disabled = true;
+    button.classList.add('opacity-70', 'cursor-not-allowed');
+  }
+
   const intervalId = setInterval(() => {
     const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
     activeDot.setAttribute('data-timer', formatTime(remaining));
+
+    if (button) {
+      button.textContent = `休息 ${formatTime(remaining)}`;
+    }
 
     if (remaining <= 0) {
       clearInterval(intervalId);
       activeDot.classList.remove('active', 'timer-active');
       activeDot.removeAttribute('data-timer');
 
-      // Clear timer state
       card.dataset.timerActive = 'false';
       card.classList.remove('timer-active');
 
       playAlarmThreeTimes();
-
-      // Mark set as fully completed
-      const setsTotal = parseInt(card.dataset.setCount || '0', 10);
-      const setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
-
-      // Check if all sets are complete after timer finishes
-      // Note: for the last set, setsCompleted will equal setsTotal at this point
-      // For non-last sets, allSetsComplete won't be called
-      if (setsCompleted === setsTotal) {
-        allSetsComplete(card);
-      }
+      updateActionButtonLabel(card);
     }
   }, 250);
 }
 
 function updateExerciseProgress(card, completedSets) {
   const totalSets = parseInt(card.dataset.setCount || '0', 10);
-  const progressBar = card.querySelector('.progress-bar');
-
-  if (!progressBar || totalSets === 0) return;
+  if (totalSets === 0) return;
 
   const percentage = (completedSets / totalSets) * 100;
-  progressBar.classList.add('animated');
-  progressBar.style.width = `${percentage}%`;
-
-  setTimeout(() => {
-    progressBar.classList.remove('animated');
-  }, 500);
+  card.style.setProperty('--progress', `${percentage}%`);
 }
 
 function allSetsComplete(card) {
   card.classList.add('all-complete');
   card.classList.add('celebrating');
-
-  // Show completion badge
-  const badge = card.querySelector('.completion-badge');
-  if (badge) {
-    badge.classList.add('show');
-  }
 
   // Celebration animation
   card.animate([
@@ -831,7 +785,6 @@ function applySavedProgress(progressData) {
       card.dataset.setsCompleted = setsCompleted;
       card.dataset.currentSet = currentSet;
 
-      // Update dots
       const dots = card.querySelectorAll('.dot');
       dots.forEach((dot, index) => {
         if (index < setsCompleted) {
@@ -839,12 +792,12 @@ function applySavedProgress(progressData) {
         }
       });
 
-      // Update progress bar
       updateExerciseProgress(card, setsCompleted);
 
-      // Mark as complete if all sets done
       if (setsCompleted >= parseInt(card.dataset.setCount || '0', 10)) {
         allSetsComplete(card);
+      } else {
+        updateActionButtonLabel(card);
       }
     }
   });
