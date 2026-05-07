@@ -527,7 +527,23 @@ function shareDayToGoogleCalendar(day) {
   const dates = `${startDate}/${endDate}`;
 
   const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`;
-  window.open(webUrl, '_blank');
+
+  // Check if Android and try to open Google Calendar app
+  if (navigator.userAgent.includes('Android')) {
+    const appUrl = `intent://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}#Intent;scheme=https;package=com.google.android.calendar;end`;
+    const fallbackTimeout = setTimeout(() => {
+      window.open(webUrl, '_blank');
+    }, 2000); // Wait 2 seconds for app to open
+
+    window.location.href = appUrl;
+
+    // If app opens, clear the timeout
+    window.addEventListener('blur', () => {
+      clearTimeout(fallbackTimeout);
+    }, { once: true });
+  } else {
+    window.open(webUrl, '_blank');
+  }
 }
 
 function formatDateOnly(date) {
