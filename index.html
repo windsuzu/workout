@@ -319,7 +319,7 @@ function createExerciseCard(exercise, index) {
   }
 
   return `
-  <div class="exercise-container flex gap-3 mb-3">
+  <div class="exercise-container flex flex-col md:flex-row gap-3 mb-3">
     <div class="card flex-1" data-exercise-id="${exerciseId}" data-rest-time="${exercise.restTime}"
          data-set-count="${exercise.sets}" data-sets-completed="0" data-current-set="1">
       <div class="swipe-layer"></div>
@@ -351,7 +351,7 @@ function createExerciseCard(exercise, index) {
         </div>
       </div>
     </div>
-    <button type="button" class="complete-set-btn w-[120px] h-[120px] flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-all duration-200" data-exercise-id="${exerciseId}">
+    <button type="button" class="complete-set-btn w-full h-16 md:w-[120px] md:h-[120px] md:aspect-square flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-all duration-200" data-exercise-id="${exerciseId}">
       完成第 1 組
     </button>
   </div>
