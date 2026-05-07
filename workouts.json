@@ -49,7 +49,7 @@
         },
         {
           "name": "集中彎舉 (Curl)",
-          "weight": 9,
+          "weight": 10,
           "unit": "kg",
           "sets": 2,
           "reps": 12,
