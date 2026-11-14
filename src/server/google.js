@@ -1,4 +1,4 @@
-import { AppError, historyEvent, isLegacyWorkout, isTestEvent, sessionEvent } from '../domain/model.js';
+import { AppError, historyEvent, isLegacyWorkout, isTestEvent, newestFirst, sessionEvent } from '../domain/model.js';
 import { hexDigest, open, seal } from './security.js';
 
 const API = 'https://www.googleapis.com/calendar/v3';
@@ -74,7 +74,7 @@ export class GoogleCalendar {
       const events = await this.events(user, id, from, to, id === 'primary' ? '訓練' : undefined);
       for (const e of events) if (e.extendedProperties?.private?.formSessionId || isLegacyWorkout(e)) rows.push(historyEvent(e, id));
     }
-    return rows.sort((a, b) => b.date.localeCompare(a.date));
+    return rows.sort(newestFirst);
   }
   async sync(user, session) {
     const calendarId = session.calendarId || user.calendarId;
@@ -92,7 +92,7 @@ export class GoogleCalendar {
     return this.request(user, `${path}/${eventId}`, { method: 'PATCH', body, headers: existing.etag ? { 'If-Match': existing.etag } : {}, query: { sendUpdates: 'none' } });
   }
   async importPreview(user, from, to) {
-    return (await this.events(user, 'primary', from, to, '訓練')).filter(e => isLegacyWorkout(e) && e.organizer?.self && !e.recurringEventId && !(e.attendees || []).some(a => !a.self)).map(e => historyEvent(e, 'primary'));
+    return (await this.events(user, 'primary', from, to, '訓練')).filter(e => isLegacyWorkout(e) && e.organizer?.self && !e.recurringEventId && !e.recurrence?.length && !(e.attendees || []).some(a => !a.self)).map(e => historyEvent(e, 'primary'));
   }
   async move(user, eventIds) {
     if (!user.calendarId || user.calendarId === 'primary') throw new AppError('Set up a dedicated workout calendar first.', 409, 'calendar_setup_required');
@@ -106,7 +106,7 @@ export class GoogleCalendar {
           if (target && isLegacyWorkout(target)) { moved.push(id); continue; }
           throw new AppError('This event is no longer on your main calendar.');
         }
-        if (!isLegacyWorkout(event) || !event.organizer?.self || event.recurringEventId || (event.attendees || []).some(a => !a.self)) throw new AppError('This event is not an eligible personal workout.');
+        if (!isLegacyWorkout(event) || !event.organizer?.self || event.recurringEventId || event.recurrence?.length || (event.attendees || []).some(a => !a.self)) throw new AppError('This event is not an eligible personal workout.');
         await this.request(user, `${path}/move`, { method: 'POST', query: { destination: user.calendarId, sendUpdates: 'none' } }); moved.push(id);
       } catch (error) { failed.push({ id, error: error instanceof AppError ? error.message : 'Could not move this event.' }); }
     }

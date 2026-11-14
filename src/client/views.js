@@ -1,4 +1,4 @@
-import { clock, completedSets, formatWeight as weight, localDate, nextDay, nextSet, plannedSets, resting } from '../domain/model.js';
+import { clock, completedSets, findExercise, formatWeight as weight, localDate, nextDay, nextSet, plannedSets, resting } from '../domain/model.js';
 
 export const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
@@ -8,7 +8,7 @@ const validLogs = e => (Array.isArray(e.logs) ? e.logs : []).filter(l => l && Nu
 const restOptions = e => [...new Set([5, 30, 45, 60, 90, 120, 150, 180, 240, 300, e.rest])].sort((a, b) => a - b).map(n => `<option value="${n}" ${e.rest === n ? 'selected' : ''}>${n === 5 ? '5s' : clock(n)}</option>`).join('');
 
 export function status(c) {
-  return `<button class="sync-status" data-action="account" aria-label="Account and sync status">${icon(!c.online ? 'wifi-off' : c.pendingCount ? 'cloud-upload' : 'cloud-check')}<span>${esc(c.syncLabel)}</span></button>${c.error ? `<div class="error-banner" role="alert">${esc(c.error)} <button data-action="retry">Retry</button>${c.conflict ? '<button data-action="account">Review</button>' : ''}</div>` : ''}`;
+  return `<button class="sync-status" data-action="account" aria-label="Account and sync status">${icon(!c.online ? 'wifi-off' : c.pendingCount ? 'cloud-upload' : 'cloud-check')}<span>${esc(c.syncLabel)}</span></button>${c.error ? `<div class="error-banner" role="alert">${esc(c.error)} <button data-action="${c.accountChanged ? 'reload' : 'retry'}">${c.accountChanged ? 'Reload app' : 'Retry'}</button>${c.conflict ? '<button data-action="account">Review</button>' : ''}</div>` : ''}`;
 }
 
 export function header(c) {
@@ -76,7 +76,7 @@ export function review(c) {
 }
 
 export function exerciseDialog(c, ui) {
-  const e = c.exercise;
+  const e = c.current.status === 'completed' ? findExercise(c.data.plan, c.exercise.id) : c.exercise;
   return `<div class="modal-backdrop"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><form data-form="exercise"><div class="heading-row"><h2 id="dialog-title">Exercise settings</h2><button type="button" data-action="close-dialog" aria-label="Close">×</button></div><p class="muted">${esc(e.name)}</p><div class="field-grid">${[['weight', 'Weight (' + e.unit + ')', e.weight, 0, 1000, '.01'], ['reps', 'Target reps', e.reps, 1, 300, '1'], ['sets', 'Sets', e.sets, 1, 20, '1'], ['rest', 'Rest (seconds)', e.rest, 1, 3600, '1']].map(([name, label, value, min, max, step]) => `<label class="field">${esc(label)}<input type="number" name="${name}" value="${value}" min="${min}" max="${max}" step="${step}" required></label>`).join('')}<label class="field">Bench / setup angle (°)<input type="number" name="angle" value="${e.angle ?? ''}" min="-30" max="90" step="1" placeholder="Not applicable"></label><label class="field">Apply changes<select name="scope"><option value="both" ${c.current.status !== 'completed' ? 'selected' : ''}>Today + next time</option><option value="today">Today only</option><option value="future" ${c.current.status === 'completed' ? 'selected' : ''}>Next time only</option></select></label></div><label class="field">Setup notes<input name="setup" maxlength="160" value="${esc(e.setup || '')}" placeholder="For example: bench position"></label><label class="field">Exercise image or GIF URL (optional)<input type="url" name="media" value="${esc(e.media || '')}" placeholder="https://…"></label><p class="muted">Completed sets keep the angle, weight, and reps used when you recorded them.</p><p class="form-error" role="alert">${esc(ui.error || '')}</p><button class="primary block" type="submit">Save exercise settings</button></form></section></div>`;
 }
 

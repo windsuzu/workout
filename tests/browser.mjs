@@ -100,13 +100,29 @@ try {
   await waitFor(async () => (await second.locator('.month-count strong').textContent()) === '1', 'Real history did not load.');
   await second.locator('.heat-day.trained').click(); await second.locator('.history-entry summary').click();
   assert.match(await second.locator('.history-entry').textContent(), /25 kg × 9/);
-  await second.locator('[data-view=workout]').click();
+  await second.getByRole('button', { name: 'Edit this workout →', exact: true }).click();
   await second.locator('[data-action=exercise-settings]').first().click();
   await second.locator('.dialog input[name=angle]').fill('45');
   await second.locator('.dialog input[name=rest]').fill('60');
   await second.getByRole('button', { name: 'Save exercise settings', exact: true }).click();
   await waitFor(() => Promise.resolve(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].angle === 45), 'Updated bench angle did not reach cloud storage.');
   assert.match([...f.events.get('u1/cal-u1').values()][0].description, /bench 30°/);
+  await second.locator('[data-action=exercise-settings]').first().click();
+  assert.equal(await second.locator('.dialog input[name=rest]').inputValue(), '60');
+  await second.locator('.dialog input[name=weight]').fill('27.5');
+  await second.getByRole('button', { name: 'Save exercise settings', exact: true }).click();
+  await waitFor(() => Promise.resolve(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].weight === 27.5), 'Repeated future edits did not save.');
+  assert.equal(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].rest, 60);
+  assert.equal(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].angle, 45);
+  await second.getByRole('button', { name: 'Start a new workout for this day →', exact: true }).click();
+  await second.locator('[data-action=exercise-settings]').first().click();
+  await second.locator('.dialog input[name=rest]').fill('90'); await second.locator('.dialog select[name=scope]').selectOption('today');
+  await second.getByRole('button', { name: 'Save exercise settings', exact: true }).click();
+  await second.locator('[data-action=exercise-settings]').first().click();
+  await second.locator('.dialog input[name=angle]').fill('55'); await second.locator('.dialog select[name=scope]').selectOption('future');
+  await second.getByRole('button', { name: 'Save exercise settings', exact: true }).click();
+  await waitFor(() => Promise.resolve(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].angle === 55), 'Future-only change did not save.');
+  assert.equal(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].rest, 60);
   // Stable card sizes across all real routines and responsive viewports.
   for (const width of [320, 390, 736]) {
     await second.setViewportSize({ width, height: 1000 }); const heights = [];
@@ -119,6 +135,15 @@ try {
     const box = await second.locator('.phone').evaluate(el => ({ width: el.clientWidth, scroll: el.scrollWidth })); assert.ok(box.scroll <= box.width + 1);
   }
   await second.screenshot({ path: 'test-results/focus-app.png', fullPage: true });
+  await waitFor(async () => (await second.locator('.sync-status').textContent()).includes('Up to date'), 'Draft sync did not finish.');
+  const blocked = await other.newPage(); await blocked.goto(origin);
+  await blocked.getByText(/already open in another tab/).waitFor();
+  await second.close(); await blocked.reload(); await blocked.locator('.exercise-card').waitFor();
+  await blocked.locator('.day-tabs [data-day=A]').click();
+  while (await blocked.locator('[data-action=previous]').isEnabled()) await blocked.locator('[data-action=previous]').click();
+  assert.match(await blocked.locator('.exercise-note').textContent(), /45°/);
+  await blocked.getByRole('button', { name: 'Calendar', exact: true }).click();
+  assert.equal(await blocked.locator('.month-count strong').textContent(), '1');
   assert.deepEqual(errors, []);
   console.log('Browser checks passed: persistent angles/sets/rest, combined set action, sound, sparse undo, offline reload, Google login, local-data import, direct calendar sync, cross-device defaults/history, historical snapshots, and stable cards across 18 exercises.');
   await other.close();

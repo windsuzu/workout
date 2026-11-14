@@ -6,11 +6,15 @@
 
 Each browser keeps an IndexedDB cache and pending-operation queue. Guest data and each signed-in account have separate keys. Guest workouts are transferred only through the explicit import action. Account data remains cached on that browser after sign-out to support later offline use of that account; sign-out removes server authentication and starts the app in the separate guest space. Use a trusted browser for personal workout data. Clearing browser site data removes unsynced local work.
 
+Only one tab per account may write its cache in a browser profile. A Web Lock is held for the document lifetime; a second tab must close the first and reload to read the latest snapshot. This prevents stale offline tabs from overwriting each other's entire saved workout. Browsers without Web Locks must be updated before using persistent tracking.
+
 The server saves drafts and completed sessions before attempting Google synchronization. Google Calendar is the visible completed-workout history; Netlify Blobs also retains the structured record for later corrections. The offline service worker caches only the public app shell and routine seed, never API responses or Google credentials.
 
 ## Authentication
 
 Google authorization-code login uses PKCE, signed expiring state, and a SameSite HttpOnly state cookie. The backend verifies the Google user profile and keeps refresh/access tokens encrypted with AES-GCM using a key derived from `AUTH_SECRET`. The browser gets an opaque HttpOnly session cookie; only its hash is stored server-side. Mutating API requests require the configured origin and JSON content type. All account paths derive from the authenticated Google subject, never a client-supplied user ID.
+
+Protected data routes also require an expected-account header matching the authenticated subject. This is a consistency guard in addition to cookie authentication: if another tab changes the Google account, old queued work cannot be uploaded under the new account. The old tab stops synchronization and asks for a reload, retaining its own cached work.
 
 `AUTH_SECRET` must remain stable between deploys. Expired or revoked Google consent requires reconnecting. This implementation does not store Google tokens in localStorage or IndexedDB.
 

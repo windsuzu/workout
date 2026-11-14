@@ -15,7 +15,7 @@ export class MemoryStore {
 export function fixture() {
   const store = new MemoryStore();
   const env = { APP_URL: 'https://form.example', AUTH_SECRET: 'test-only-secret-that-is-at-least-thirty-two-characters', GOOGLE_CLIENT_ID: 'test-client', GOOGLE_CLIENT_SECRET: 'test-secret' };
-  const events = new Map(), calendarRows = new Map(), calls = []; let failSync = false, googleHook;
+  const events = new Map(), calendarRows = new Map(), calls = [], identities = new Map(); let failSync = false, googleHook;
   const response = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   const fetcher = async (rawURL, options = {}) => {
     const url = new URL(rawURL), method = options.method || 'GET'; calls.push({ url: url.href, method, options });
@@ -52,13 +52,13 @@ export function fixture() {
     rows.set(eventId, event); return response(event);
   };
   const api = createAPI({ store, env, fetcher });
-  const request = (path, { cookie = '', method = 'GET', data, origin = env.APP_URL } = {}) => api(new Request(env.APP_URL + path, { method, headers: { ...(cookie ? { Cookie: cookie } : {}), ...(method !== 'GET' ? { Origin: origin, 'Content-Type': 'application/json' } : {}) }, ...(data ? { body: JSON.stringify(data) } : {}) }));
+  const request = (path, { cookie = '', method = 'GET', data, origin = env.APP_URL, account = identities.get(cookie) } = {}) => api(new Request(env.APP_URL + path, { method, headers: { ...(cookie ? { Cookie: cookie } : {}), ...(account ? { 'X-Form-Account': account } : {}), ...(method !== 'GET' ? { Origin: origin, 'Content-Type': 'application/json' } : {}) }, ...(data ? { body: JSON.stringify(data) } : {}) }));
   async function login(id = 'u1') {
     const start = await request('/api/auth/google'), consent = new URL(start.headers.get('location'));
     const stateCookie = start.headers.getSetCookie()[0].split(';')[0];
     const end = await request(`/api/auth/callback?state=${consent.searchParams.get('state')}&code=${id}`, { cookie: stateCookie });
     if (end.status !== 302) throw new Error(await end.text());
-    return end.headers.getSetCookie().find(value => value.startsWith('form_session=')).split(';')[0];
+    const value = end.headers.getSetCookie().find(value => value.startsWith('form_session=')).split(';')[0]; identities.set(value, id); return value;
   }
   return { api, store, env, calls, events, request, login, setSyncFailure: value => { failSync = value; }, setGoogleHook: value => { googleHook = value; } };
 }

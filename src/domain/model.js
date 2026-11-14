@@ -10,6 +10,7 @@ export const REST_OPTIONS = [5, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 export const localDate = (value = new Date(), timeZone = 'Asia/Taipei') => new Date(value).toLocaleDateString('en-CA', { timeZone });
 export const clock = seconds => `${Math.floor(seconds / 60)}:${String(Math.max(0, seconds) % 60).padStart(2, '0')}`;
 export const formatWeight = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+export const newestFirst = (a, b) => (Date.parse(b.start || b.date) || 0) - (Date.parse(a.start || a.date) || 0) || String(b.id || '').localeCompare(String(a.id || ''));
 
 function number(value, label, min, max, integer = false) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) {
@@ -106,6 +107,7 @@ export function completeSet(session, exerciseId, setIndex, values, now = Date.no
 export function undoSet(session, exerciseId, setIndex) {
   const e = session.exercises.find(item => item.id === exerciseId);
   if (!e?.logs[setIndex]) return session;
+  if (session.status === 'completed' && completedSets(session) === 1) throw new AppError('A saved workout must keep at least one set. Correct this set instead of undoing it.');
   e.drafts[setIndex] = actualSet(e.logs[setIndex].weight, e.logs[setIndex].reps);
   e.logs[setIndex] = null; e.timer = { phase: 'idle', remaining: e.rest, deadline: null };
   if (!completedSets(session) && session.status === 'draft') session.startedAt = null;

@@ -1,4 +1,4 @@
-import { AppError, applyPlanChanges, clone, completeSet, completedSets, findExercise, finishSession, historyEvent, localDate, newSession, seedPlan, sessionEvent, undoSet, validatePreference } from '../domain/model.js';
+import { AppError, applyPlanChanges, clone, completeSet, completedSets, findExercise, finishSession, historyEvent, localDate, newestFirst, newSession, seedPlan, sessionEvent, undoSet, validatePreference } from '../domain/model.js';
 import { openStorage } from './storage.js';
 
 export class Controller extends EventTarget {
@@ -10,7 +10,7 @@ export class Controller extends EventTarget {
   changed(type = 'change') { this.dispatchEvent(new Event(type)); }
   async api(path, options = {}) {
     let response;
-    try { response = await this.fetcher(`/api${path}`, { credentials: 'same-origin', ...options, headers: { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }); }
+    try { response = await this.fetcher(`/api${path}`, { credentials: 'same-origin', ...options, headers: { ...(this.user && path !== '/me' ? { 'X-Form-Account': this.user.id } : {}), ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }); }
     catch { throw new AppError('You are offline or the server is unavailable. Changes stay on this device.', 0, 'offline'); }
     let data; try { data = await response.json(); } catch { throw new AppError('The server returned an unexpected response. Please retry.', 503); }
     if (!response.ok) throw new AppError(data.error || 'Could not complete the request.', response.status, data.code, data.details);
@@ -24,6 +24,7 @@ export class Controller extends EventTarget {
     catch { this.online = navigator.onLine; me = { user: previous?.user || null, configured: false }; }
     this.user = me.user; this.authorized = !!me.user && !('configured' in me && me.configured === false); this.configured = !!me.configured; this.calendar = me.calendar || previous?.calendar || null;
     const key = this.user?.id || 'guest'; this.accountKey = `account:${key}`;
+    if (this.storage.claim && !await this.storage.claim(this.accountKey)) throw new AppError('This account is already open in another tab. Close that tab, then reload here to load its latest saved workout.', 409, 'tab_locked');
     let cached = await this.storage.get(this.accountKey);
     let defaults;
     try { const response = await this.fetcher('/workouts.json'); if (!response.ok) throw new Error(); defaults = seedPlan(await response.json()); }
@@ -51,6 +52,7 @@ export class Controller extends EventTarget {
   get pendingCount() { return this.data.planOps.length + Object.keys(this.data.outbox).length; }
   get syncLabel() {
     if (!this.storage?.persistent) return 'Device storage unavailable';
+    if (this.accountChanged) return 'Account changed · reload to continue';
     if (this.localSaving) return 'Saving on this device…';
     if (!this.online) return this.pendingCount ? 'Offline · saved on this device' : 'Offline · available on this device';
     if (this.conflict) return 'Review changes from another device';
@@ -96,6 +98,7 @@ export class Controller extends EventTarget {
     const e = this.exercise;
     if (e.timer.phase === 'running') { e.timer.remaining = Math.max(0, Math.ceil((e.timer.deadline - Date.now()) / 1000)); e.timer.phase = 'paused'; e.timer.deadline = null; }
     else if (e.timer.phase === 'paused' && e.timer.remaining > 0) { e.timer.phase = 'running'; e.timer.deadline = Date.now() + e.timer.remaining * 1000; }
+    if (!e.timer.remaining) e.timer = { phase: 'ready', remaining: 0, deadline: null };
     this.persist(); this.changed();
   }
   updateExercise(values, scope = 'both') {
@@ -131,7 +134,7 @@ export class Controller extends EventTarget {
   }
   rebuildPlan() { this.data.plan = clone(this.data.cloudPlan); for (const operation of this.data.planOps) this.data.plan = applyPlanChanges(this.data.plan, operation.changes); }
   async flush() {
-    if (!this.data || this.syncing || !this.online || !this.authorized || this.conflict) return;
+    if (!this.data || this.syncing || !this.online || !this.authorized || this.conflict || this.accountChanged) return;
     this.syncing = true; this.changed('status');
     try {
       await this.persistChain;
@@ -150,6 +153,10 @@ export class Controller extends EventTarget {
         if (this.data.outbox[id]?.operationId === sent.operationId) {
           if (response.syncError) { this.error = response.syncError.message; this.syncErrorCode = response.syncError.code; if (response.syncError.code === 'reconnect_required') this.authorized = false; this.persist(); break; }
           delete this.data.outbox[id];
+          if (response.session.status === 'completed') {
+            const row = { ...historyEvent({ ...sessionEvent(response.session), id: response.session.eventId || id, htmlLink: response.session.eventUrl }, response.session.calendarId || 'local'), sync: response.session.sync };
+            this.data.history = this.data.history.filter(event => event.sessionId !== id); this.data.history.push(row);
+          }
         }
         this.persist();
       }
@@ -166,7 +173,7 @@ export class Controller extends EventTarget {
       this.resyncRequested = false;
     }
   }
-  handleError(error) { this.error = error.message; if (error.status === 401) this.authorized = false; if (error.code === 'offline') this.online = false; this.changed('status'); }
+  handleError(error) { this.error = error.message; if (error.status === 401 || error.code === 'account_changed') this.authorized = false; if (error.code === 'account_changed') this.accountChanged = true; if (error.code === 'offline') this.online = false; this.changed('status'); }
   async refreshHistory() {
     if (!this.authorized || !this.online) return;
     let to = localDate(new Date(Date.now() + 86400000)), start = localDate(new Date(Date.now() - 365 * 86400000));
@@ -185,7 +192,7 @@ export class Controller extends EventTarget {
     for (const session of Object.values(this.data.sessions)) if (session.status === 'completed') {
       if (this.data.outbox[session.id] || !rows.has(session.id)) rows.set(session.id, { ...historyEvent({ ...sessionEvent(session), id: session.id, htmlLink: session.eventUrl }, 'local'), sync: this.data.outbox[session.id] ? 'pending' : session.sync || 'local' });
     }
-    return [...rows.values()].sort((a, b) => b.date.localeCompare(a.date));
+    return [...rows.values()].sort(newestFirst);
   }
   async setupCalendar(calendarId) {
     const response = await this.api(calendarId ? '/calendar/select' : '/calendar/setup', { method: 'POST', body: JSON.stringify(calendarId ? { calendarId } : {}) });
@@ -193,15 +200,21 @@ export class Controller extends EventTarget {
     this.error = ''; this.syncErrorCode = null; await this.storage.set('last-account', { user: this.user, calendar: this.calendar }); this.changed(); await this.flush(); await this.refreshHistory();
   }
   async reconnect() {
+    if (this.accountChanged) return;
     this.online = true;
-    try { const me = await this.api('/me'); this.authorized = !!me.user; this.configured = me.configured; if (me.user) { await this.pull(); await this.flush(); await this.refreshHistory(); } }
+    try {
+      const me = await this.api('/me');
+      if ((me.user?.id || null) !== (this.user?.id || null)) throw new AppError('Your Google account changed. Reload the app to continue; pending work stays on this device.', 409, 'account_changed');
+      this.authorized = !!me.user; this.configured = me.configured;
+      if (me.user) { await this.pull(); await this.flush(); await this.refreshHistory(); }
+    }
     catch (error) { this.handleError(error); }
     this.changed('status');
   }
   async importLocalWorkouts() {
     if (!this.authorized) throw new AppError('Sign in before importing local workouts.', 401);
     const guest = await this.storage.get('account:guest');
-    if (!guest || guest.importedUsers?.includes(this.user.id)) return;
+    if (!guest || this.data.importedGuest || guest.importedUsers?.includes(this.user.id)) return;
     const changes = [];
     for (const day of ['A', 'B', 'C']) for (const exercise of guest.plan.days[day].exercises) {
       const target = findExercise(this.data.plan, exercise.id);
@@ -219,7 +232,7 @@ export class Controller extends EventTarget {
       const active = this.data.sessions[this.data.active[day]];
       if (active && !completedSets(active) && !active.customized && !this.data.outbox[active.id]) this.data.sessions[active.id] = newSession(this.data.plan, day, active.id);
     }
-    guest.importedUsers = [...(guest.importedUsers || []), this.user.id]; await this.storage.set('account:guest', guest);
+    this.data.importedGuest = true;
     this.notice = 'Local workouts added to your account’s sync queue.'; this.persist(); this.changed(); await this.flush();
   }
   resolveConflict(choice) {

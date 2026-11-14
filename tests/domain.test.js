@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import seed from '../workouts.json' with { type: 'json' };
-import { applyPlanChanges, completeSet, finishSession, newSession, seedPlan, sessionEvent, undoSet, validateSession } from '../src/domain/model.js';
+import { applyPlanChanges, completeSet, finishSession, newestFirst, newSession, seedPlan, sessionEvent, undoSet, validateSession } from '../src/domain/model.js';
 
 test('weights, reps and bench angle are snapshots; future defaults cannot rewrite a completed set', () => {
   const plan = seedPlan(seed), session = newSession(plan, 'A', 'test-workout');
@@ -38,4 +38,19 @@ test('untrusted set values, media protocols, and destructive stale plan edits ar
   const session = newSession(plan, 'A', 'test-workout');
   assert.throws(() => completeSet(session, 'a-0', 0, { weight: -1, reps: 12 }));
   assert.throws(() => completeSet(session, 'a-0', 0, { weight: 20, reps: 2.5 }));
+});
+
+test('undo cannot invalidate a completed workout by removing its final set', () => {
+  const session = newSession(seedPlan(seed), 'A', 'saved-partial'); completeSet(session, 'a-0', 0, { weight: 20, reps: 8 }); finishSession(session);
+  assert.throws(() => undoSet(session, 'a-0', 0), /at least one set/);
+  assert.ok(validateSession(session).exercises[0].logs[0]);
+  completeSet(session, 'a-0', 1, { weight: 22, reps: 8 }); undoSet(session, 'a-0', 0);
+  assert.ok(validateSession(session).exercises[0].logs[1]);
+});
+
+test('same-day workouts use actual chronology instead of insertion order', () => {
+  const morning = { id: 'a', date: '2026-11-14', start: '2026-11-14T08:00:00+08:00' };
+  const evening = { id: 'b', date: '2026-11-14', start: '2026-11-14T18:00:00+08:00' };
+  const old = { id: 'c', date: '2026-11-13' };
+  assert.deepEqual([morning, old, evening].sort(newestFirst).map(row => row.id), ['b', 'a', 'c']);
 });

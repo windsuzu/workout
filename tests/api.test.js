@@ -97,3 +97,27 @@ test('migration previews only personal workouts and moves exactly selected recor
   assert.deepEqual(f.events.get('u1/cal-u1').get('old-a'), workout);
   assert.ok(f.events.get('u1/primary').has('old-b') && f.events.get('u1/primary').has('meeting'));
 });
+
+test('protected requests reject missing or changed account identity, including logout', async () => {
+  const f = fixture(), cookie = await f.login('u2');
+  for (const account of ['', 'u1']) {
+    const read = await f.request('/api/state', { cookie, account }); assert.equal(read.status, 409); assert.equal((await read.json()).code, 'account_changed');
+    const write = await f.request('/api/plan', { cookie, account, method: 'PATCH', data: { operationId: 'wrong-account', changes: [{ exerciseId: 'a-0', field: 'weight', value: 77 }] } }); assert.equal(write.status, 409);
+    assert.equal((await f.request('/api/logout', { cookie, account, method: 'POST', data: {} })).status, 409);
+  }
+  assert.equal((await (await f.request('/api/me', { cookie })).json()).user.id, 'u2');
+  assert.notEqual(f.store.rows.get('users/u2').data.plan.days.A.exercises[0].weight, 77);
+});
+
+test('migration rejects recurring masters, instances, and events converted after preview', async () => {
+  const f = fixture(), cookie = await f.login(); await f.request('/api/calendar/setup', { cookie, method: 'POST', data: {} });
+  const base = { summary: '訓練 A - Strength', organizer: { self: true }, start: { date: '2026-10-20' }, end: { date: '2026-10-21' } };
+  const master = { ...base, id: 'master', recurrence: ['RRULE:FREQ=WEEKLY;COUNT=52'] }, instance = { ...base, id: 'instance', recurringEventId: 'master' }, changed = { ...base, id: 'changed' };
+  f.events.set('u1/primary', new Map([master, instance, changed].map(event => [event.id, event])));
+  const preview = await (await f.request('/api/import/preview?from=2026-10-01&to=2026-11-01', { cookie })).json(); assert.deepEqual(preview.events.map(event => event.id), ['changed']);
+  changed.recurrence = ['RRULE:FREQ=DAILY'];
+  const result = await (await f.request('/api/import', { cookie, method: 'POST', data: { eventIds: ['master', 'instance', 'changed'] } })).json();
+  assert.equal(result.moved.length, 0); assert.equal(result.failed.length, 3);
+  assert.equal(f.calls.some(call => new URL(call.url).pathname.endsWith('/move')), false);
+  assert.equal(f.events.get('u1/primary').size, 3);
+});

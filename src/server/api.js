@@ -45,13 +45,14 @@ export function createAPI({ store, env, fetcher = fetch }) {
       throw new AppError('Your latest changes are saved and waiting to sync. Please retry.', 409, 'sync_in_progress');
     } finally { await repo.update(key, value => value?.token === token ? { token, expiresAt: 0 } : undefined); }
   }
-  async function authenticate(request) {
+  async function authenticate(request, requireAccount = false) {
     const token = cookies(request).form_session;
     if (!token || token.length > 100) throw new AppError('Sign in to sync your workouts.', 401, 'sign_in_required');
     const session = await repo.get(`auth/${await sha256(token)}`);
     if (!session || session.expiresAt < Date.now()) throw new AppError('Sign in again to sync your workouts.', 401, 'sign_in_required');
     const user = await repo.get(`users/${session.userId}`);
     if (!user) throw new AppError('Sign in again.', 401, 'sign_in_required');
+    if (requireAccount && request.headers.get('X-Form-Account') !== user.id) throw new AppError('Your Google account changed. Reload the app to continue; pending work stays on this device.', 409, 'account_changed');
     return user;
   }
   return async function handle(request) {
@@ -94,10 +95,11 @@ export function createAPI({ store, env, fetcher = fetch }) {
         return redirect(origin + '/', [cookie('form_session', sessionToken, origin, 30 * 86400), cookie('form_oauth', '', origin, 0)]);
       }
       if (path === '/api/logout' && request.method === 'POST') {
+        await authenticate(request, true);
         const token = cookies(request).form_session; if (token) await repo.remove(`auth/${await sha256(token)}`);
         return json({ ok: true }, 200, { 'Set-Cookie': cookie('form_session', '', origin, 0) });
       }
-      const user = await authenticate(request);
+      const user = await authenticate(request, true);
       if (path === '/api/state' && request.method === 'GET') {
         const drafts = [];
         for (const draft of await repo.list(`drafts/${user.id}/`)) {

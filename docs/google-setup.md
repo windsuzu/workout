@@ -59,4 +59,6 @@ Copy `.env.example` to `.env.local`, fill it with development values, and use th
 - **Access blocked:** add the account as an OAuth test user and confirm the Calendar API and scopes are enabled. Broader public use may require Google verification.
 - **Reconnect Google:** consent may have been revoked or a refresh token expired. Google apps in external Testing mode commonly issue Calendar refresh tokens that expire after seven days; reconnect or configure the appropriate production publishing/verification status.
 - **Sync pending:** keep the app open and reconnect/retry. Completed records are saved before Calendar is contacted. Choose the workout calendar if setup is still pending.
+- **Already open in another tab:** close the other tab for this account, then reload. Each browser profile permits one writer per account so offline progress cannot be overwritten by a stale tab.
+- **Account changed:** another tab changed the Google session. Reload to enter that account; pending work stays in its original account's device cache.
 - **Offline timer sound:** sound starts after the first interaction. Mobile browsers can suspend sound and timers when the device is locked or the app is backgrounded; elapsed rest is recalculated on return, but background alarms are not guaranteed.

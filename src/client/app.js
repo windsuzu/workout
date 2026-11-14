@@ -92,10 +92,11 @@ root.addEventListener('click', async event => {
       case 'account': {
         ui.dialog = 'account'; ui.error = ''; render();
         const guest = await c.storage.get('account:guest');
-        ui.guestImport = c.authorized && !guest?.importedUsers?.includes(c.user.id) ? Object.values(guest?.sessions || {}).filter(s => completedSets(s)).length : 0;
+        ui.guestImport = c.authorized && !c.data.importedGuest && !guest?.importedUsers?.includes(c.user.id) ? Object.values(guest?.sessions || {}).filter(s => completedSets(s)).length : 0;
         return render();
       }
       case 'retry': return task(async () => { await c.reconnect(); });
+      case 'reload': location.reload(); return;
       case 'refresh-history': return task(async () => { await c.refreshHistory(); });
       case 'setup-calendar': return task(async () => { await c.setupCalendar(); });
       case 'load-calendars': return task(async () => { ui.calendars = (await c.api('/calendars')).calendars; });
@@ -138,7 +139,12 @@ root.addEventListener('submit', event => {
   event.preventDefault(); const form = event.target; if (!form.reportValidity()) return;
   const fields = Object.fromEntries(new FormData(form));
   if (form.dataset.form === 'exercise') {
-    try { c.updateExercise({ weight: Number(fields.weight), reps: Number(fields.reps), sets: Number(fields.sets), rest: Number(fields.rest), angle: fields.angle === '' ? null : Number(fields.angle), setup: fields.setup, media: fields.media || null }, fields.scope); ui.dialog = null; ui.error = ''; render(true); }
+    try {
+      const parse = (field, value) => ['weight', 'reps', 'sets', 'rest'].includes(field) ? Number(value) : field === 'angle' ? value === '' ? null : Number(value) : field === 'media' ? value || null : value;
+      const changes = Object.fromEntries(['weight', 'reps', 'sets', 'rest', 'angle', 'setup', 'media'].filter(field => JSON.stringify(parse(field, fields[field])) !== JSON.stringify(parse(field, form.elements.namedItem(field).defaultValue))).map(field => [field, parse(field, fields[field])]));
+      if (Object.keys(changes).length) c.updateExercise(changes, fields.scope);
+      ui.dialog = null; ui.error = ''; render(true);
+    }
     catch (error) { ui.error = error.message; const target = root.querySelector('.form-error'); if (target) target.textContent = ui.error; }
   } else if (form.dataset.form === 'calendar') void task(async () => { await c.setupCalendar(fields.calendarId); });
   else if (form.dataset.form === 'import-range') void task(async () => { ui.importFrom = fields.from; ui.importTo = fields.to; ui.importEvents = (await c.api(`/import/preview?from=${fields.from}&to=${fields.to}`)).events; });
