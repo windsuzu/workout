@@ -73,11 +73,3 @@ pids
 # Temporary files
 *.tmp
 *.temp
-
-# Build output, local development data, and credentials
-dist/
-.local-data/
-.env.local
-.env.*.local
-test-results/
-playwright-report/

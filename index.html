@@ -1,18 +1,890 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#365a16">
-  <meta name="description" content="A focused workout tracker with editable sets, exercise-specific rest timers, and Google Calendar history.">
-  <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/assets/app.css">
-  <title>FORM · Workout</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shih Chieh's Workout Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+* { box-sizing: border-box; }
+body { background-color: #090e1a; color: #e2e8f0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.container { margin: 0 auto !important; width: 50% !important; }
+
+/* 手機及平板：全寬 */
+@media (max-width: 768px) {
+  .container { width: 100% !important; }
+}
+
+.tab-active { border-bottom: 4px solid #38bdf8; color: #38bdf8; }
+.card { background: #111827; border-radius: 18px; padding: 0.6rem; border: 1px solid rgba(148, 163, 184, 0.12); cursor: grab; transition: all 0.25s ease; overflow: hidden; position: relative; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18); height: 120px; }
+.card:active { cursor: grabbing; }
+.card.swiping { transition: none; }
+.card.all-complete { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25); box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.12); }
+.card.timer-active { cursor: not-allowed; opacity: 0.95; position: relative; }
+.card.timer-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 12px;
+  pointer-events: none;
+}
+.card.timer-active:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: #334155 !important;
+}
+.card.timer-active .dot.active.timer-active {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.badge { background: rgba(148, 163, 184, 0.15); padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; color: #cbd5e1; }
+.complete-set-btn { background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(148, 163, 184, 0.14); color: #e2e8f0; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); aspect-ratio: 1; height: 120px; }
+.complete-set-btn:hover { background: rgba(148, 163, 184, 0.12); border-color: rgba(148, 163, 184, 0.20); }
+.complete-set-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.angle-tag { color: #84cc16; font-weight: 700; }
+.loading { text-align: center; padding: 2rem; color: #94a3b8; }
+.error { text-align: center; padding: 2rem; color: #ef4444; }
+
+/* Set indicators */
+.dots-container {
+  min-height: 28px;
+  padding: 0.15rem 0.35rem;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgb(100, 116, 139, 0.3);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+.dot.completed {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  animation: dotPulse 0.6s ease-out;
+}
+.dot.active {
+  background: rgb(14, 165, 233, 0.5);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.4);
+}
+.dot.timer-active::after {
+  content: attr(data-timer);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 16px);
+  transform: translateY(-50%);
+  background: #1e293b;
+  color: #fbbf24;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  min-width: 32px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Card progress overlay */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: var(--progress, 0%);
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.10) 0%, rgba(16, 185, 129, 0.08) 35%, rgba(250, 204, 21, 0.06) 100%);
+  transition: width 0.35s ease;
+  pointer-events: none;
+  transform-origin: left;
+}
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+.card.all-complete::before {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(74, 222, 128, 0.12) 45%, rgba(219, 234, 254, 0.08) 100%);
+}
+
+/* Day progress */
+.day-progress-container { position: fixed; top: 50%; right: 20px; width: 200px; background: rgba(30, 41, 59, 0.8);
+  border-radius: 8px; padding: 12px; border: 1px solid #334155; backdrop-filter: blur(8px); z-index: 10; }
+.day-progress-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; text-align: center; }
+.day-progress-track { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+.day-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9 0%, #fbbf24 50%, #10b981 100%);
+  background-size: 200% 100%;
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+/* Auth token input */
+#recallApiToken {
+  width: 100%;
+  padding: 8px 12px;
+  background: #334155;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 14px;
+  margin: 8px 0 12px 0;
+}
+#recallApiToken::placeholder { color: #94a3b8; }
+
+/* Animation keyframes */
+@keyframes dotPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.2); }
+  100% { transform: scale(1); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); }
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes swipeReveal {
+  0% { transform: translateX(0) rotate(0); }
+  50% { transform: translateX(40px) rotate(2deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes celebrate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* Swipe visual feedback */
+.swipe-layer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, #10b981 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.card.swiping .swipe-layer { opacity: 0.3; }
+
+/* Hidden accessible buttons */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+@media (max-width: 768px) {
+  .day-progress-container { position: static; margin-bottom: 20px; width: 100%; }
+}
+</style>
 </head>
 <body>
-  <div id="workout-focus"><div class="stage"><div class="phone" aria-label="FORM workout app"><main class="app-body"><h1>FORM</h1><p role="status">Loading your workouts…</p><noscript>Enable JavaScript to use your workout tracker.</noscript></main></div></div></div>
-  <script type="module" src="/assets/app.js"></script>
+<div class="container p-4 pb-10">
+<header class="mb-6 text-center">
+  <h1 class="text-2xl font-bold text-white">🏋️‍♂️ 三日全身訓練系統</h1>
+  <p class="text-slate-400 text-sm mt-1" id="userInfo">載入中...</p>
+</header>
+
+<div class="loading" id="loading">
+  載入訓練資料中...
+</div>
+
+<div class="error hidden" id="error">
+  載入訓練資料失敗，請檢查 workouts.json 檔案。
+</div>
+
+<div class="hidden" id="mainContent">
+  <div class="flex justify-around mb-6 border-b border-slate-700" id="tabContainer">
+    <button onclick="showDay('A')" id="btnA" class="pb-2 px-4 tab-active font-bold">Day A</button>
+    <button onclick="showDay('B')" id="btnB" class="pb-2 px-4 text-slate-400 font-bold">Day B</button>
+    <button onclick="showDay('C')" id="btnC" class="pb-2 px-4 text-slate-400 font-bold">Day C</button>
+  </div>
+
+  <div id="dayA" class="content-section"></div>
+  <div id="dayB" class="content-section hidden"></div>
+  <div id="dayC" class="content-section hidden"></div>
+
+  <!-- Training Notes Section -->
+  <div class="mt-10 pt-6 border-t border-slate-700" id="trainingTips">
+    <h2 class="text-xl font-bold text-white mb-3">💡 訓練備註 (Training Tips)</h2>
+    <div class="space-y-3" id="tipsContainer">
+      <!-- Tips will be dynamically loaded -->
+    </div>
+  </div>
+</div>
+
+<!-- 完成對話框 -->
+<div id="completionModal" class="fixed inset-0 hidden items-center justify-center bg-black/50 p-4 z-[9999]">
+  <div class="w-full max-w-md rounded-xl bg-slate-800 p-6 text-white shadow-lg">
+    <h2 class="text-xl font-bold mb-2">🎉 恭喜完成！</h2>
+    <p class="text-slate-200 mb-3">你已完成今天的所有訓練，想把這次訓練分享到日曆嗎？</p>
+    <div class="flex justify-end gap-2">
+      <button id="modalCancel" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-500">不用了</button>
+      <button id="modalShare" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500">分享到 Calendar</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+let currentDay = 'A';
+let workoutData = null;
+
+// Initialize app
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const response = await fetch('./workouts.json');
+    if (!response.ok) {
+      throw new Error('無法載入訓練資料');
+    }
+    workoutData = await response.json();
+    initializeApp();
+  } catch (error) {
+    showError();
+  }
+});
+
+function showError() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('error').classList.remove('hidden');
+}
+
+function initializeApp() {
+  // Hide loading, show main content
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('mainContent').classList.remove('hidden');
+
+  // Set user info
+  const user = workoutData.metadata.user;
+  document.getElementById('userInfo').textContent = `${user.height} / ${user.weight} | 目標：${user.goal}`;
+
+  // Render all days
+  renderDays();
+
+  // Render training tips
+  renderTrainingTips();
+
+  // Initialize button-driven set completion and progress tracking
+  initActionButtons();
+  initProgressTracking();
+  updateDayProgress();
+
+  // Check URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const day = urlParams.get('day');
+  if (day && ['A', 'B', 'C'].includes(day.toUpperCase())) {
+    showDay(day.toUpperCase());
+  }
+}
+
+function renderDays() {
+  ['A', 'B', 'C'].forEach(day => {
+    const dayData = workoutData.days[day];
+    const container = document.getElementById(`day${day}`);
+    const exercisesHtml = dayData.exercises.map((exercise, index) => {
+      return createExerciseCard(exercise, index + 1);
+    }).join('');
+
+    container.innerHTML = `
+    <div class="mb-3 text-sky-400 font-semibold italic text-sm">焦點：${dayData.focus}</div>
+    <div class="mb-3">
+      <button onclick="shareDayToGoogleCalendar('${day}')" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
+       分享到 Google 日曆
+      </button>
+    </div>
+    ${exercisesHtml}
+    `;
+  });
+}
+
+function createExerciseCard(exercise, index) {
+  const colorClass = exercise.color === 'highlight' ? 'text-orange-200' : 'text-white';
+  const angleTag = exercise.angleTag ? `<span class="badge angle-tag">${exercise.angleTag}</span>` : '';
+  const badge = exercise.badge ? `<span class="badge">${exercise.badge}</span>` : '';
+  const exerciseId = `exercise-${Date.now()}-${index}`;
+
+  // Generate dots
+  let dotsHtml = '';
+  for (let i = 0; i < exercise.sets; i++) {
+    dotsHtml += '<div class="dot" data-set="' + (i + 1) + '"></div>';
+  }
+
+  return `
+  <div class="exercise-container flex flex-col md:flex-row gap-3 mb-3">
+    <div class="card flex-1" data-exercise-id="${exerciseId}" data-rest-time="${exercise.restTime}"
+         data-set-count="${exercise.sets}" data-sets-completed="0" data-current-set="1">
+      <div class="swipe-layer"></div>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="font-bold text-base ${colorClass} leading-tight" data-exercise-name>${index}. ${exercise.name}</h3>
+          <div class="dots-container flex gap-1 items-center">
+            ${dotsHtml}
+          </div>
+        </div>
+        ${angleTag || badge}
+      </div>
+      <div class="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-200">
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Weight</span>
+          <span class="font-semibold text-sky-400">${exercise.weight}${exercise.unit}</span>
+        </div>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Sets</span>
+          <span class="font-semibold text-emerald-400">${exercise.sets}</span>
+        </div>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Reps</span>
+          <span class="font-semibold text-violet-400">${exercise.reps}+</span>
+        </div>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-800/55 px-2 py-1 border border-slate-700">
+          <span class="text-slate-400">Rest</span>
+          <span class="font-semibold text-amber-400">${exercise.restTime}</span>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="complete-set-btn w-full h-16 md:w-[120px] md:h-[120px] md:aspect-square flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-all duration-200" data-exercise-id="${exerciseId}">
+      完成第 1 組
+    </button>
+  </div>
+  `;
+}
+
+function renderTrainingTips() {
+  const tipsHtml = workoutData.metadata.trainingTips.map(tip => {
+    return `
+    <div class="card">
+      <h4 class="font-bold text-sky-400 mb-2">${tip.title}</h4>
+      <p class="text-slate-300 text-sm">${tip.content}</p>
+    </div>
+    `;
+  }).join('');
+
+  document.getElementById('tipsContainer').innerHTML = tipsHtml;
+}
+
+function showDay(day) {
+  currentDay = day;
+  document.querySelectorAll('.content-section').forEach(el => el.classList.add('hidden'));
+  document.getElementById('day' + day).classList.remove('hidden');
+
+  ['A', 'B', 'C'].forEach(d => {
+    const btn = document.getElementById('btn' + d);
+    btn.classList.remove('tab-active', 'text-sky-400');
+    btn.classList.add('text-slate-400');
+  });
+  document.getElementById('btn' + day).classList.add('tab-active');
+  document.getElementById('btn' + day).classList.remove('text-slate-400');
+}
+
+
+
+// Timer functions - used exclusively by the swipe gesture system (initRestTimers removed)
+function parseTime(value) {
+  const parts = value.split(':').map(p => parseInt(p.trim(), 10));
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return Number.isFinite(parts[0]) ? parts[0] : 0;
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function startRestTimer(btn, totalSeconds) {
+  if (btn.disabled || btn.dataset.completed === 'true') return;
+
+  const section = btn.closest('.content-section');
+  if (section) {
+    const buttons = Array.from(section.querySelectorAll('.rest-btn'));
+    const uncompletedButtons = buttons.filter(b => b.dataset.completed !== 'true');
+    const isLastButton = uncompletedButtons.length === 1 && uncompletedButtons[0] === btn;
+
+    if (isLastButton) {
+      btn.dataset.completed = 'true';
+      completeRestTimer(btn);
+      return;
+    }
+  }
+
+  btn.disabled = true;
+  btn.classList.remove('from-sky-500', 'to-sky-600', 'hover:from-sky-400', 'hover:to-sky-500');
+  btn.classList.add('from-slate-600', 'to-slate-700', 'opacity-70', 'cursor-not-allowed');
+
+  const endAt = Date.now() + totalSeconds * 1000;
+  const intervalId = setInterval(() => {
+    const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    btn.textContent = formatTime(remaining);
+    btn.classList.add('animate-pulse');
+
+    if (remaining <= 0) {
+      clearInterval(intervalId);
+      btn.classList.remove('animate-pulse');
+      completeRestTimer(btn);
+    }
+  }, 250);
+
+  btn.dataset.intervalId = String(intervalId);
+}
+
+function completeRestTimer(btn) {
+  btn.textContent = '✅ Complete';
+  btn.dataset.completed = 'true';
+  btn.classList.remove('from-slate-600', 'to-slate-700', 'opacity-70', 'cursor-not-allowed');
+  btn.classList.add('from-emerald-500', 'to-emerald-600', 'hover:from-emerald-400', 'hover:to-emerald-500', 'shadow-emerald-500/25');
+
+  playAlarmThreeTimes();
+  checkAllSetsCompleted(btn);
+}
+
+function checkAllSetsCompleted(btn) {
+  const section = btn.closest('.content-section');
+  if (!section) return;
+
+  const restButtons = Array.from(section.querySelectorAll('.rest-btn'));
+  if (!restButtons.length) return;
+
+  const allDone = restButtons.every(btn => btn.dataset.completed === 'true');
+  if (!allDone) return;
+
+  if (section.dataset.congratsShown === 'true') return;
+  section.dataset.congratsShown = 'true';
+
+  showCompletionDialog();
+}
+
+function showCompletionDialog() {
+  const modal = document.getElementById('completionModal');
+  const shareBtn = document.getElementById('modalShare');
+  const cancelBtn = document.getElementById('modalCancel');
+
+  const closeModal = () => modal.classList.add('hidden');
+
+  shareBtn.onclick = () => {
+    closeModal();
+    shareDayToGoogleCalendar(currentDay);
+  };
+  cancelBtn.onclick = () => closeModal();
+
+  modal.classList.remove('hidden');
+}
+
+function playAlarmThreeTimes() {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const duration = 0.15;
+  const interval = 0.25;
+
+  for (let i = 0; i < 3; i++) {
+    const start = context.currentTime + i * interval;
+    playBeep(context, start, duration);
+  }
+}
+
+function playBeep(context, startTime, duration) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = 'square';
+  oscillator.frequency.value = 1200;
+  gain.gain.setValueAtTime(0.22, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration);
+}
+
+// Google Calendar integration (unchanged - uses currentDay which is now properly set)
+function shareDayToGoogleCalendar(day) {
+  const dayData = workoutData.days[day];
+  if (!dayData) return;
+
+  const focusText = dayData.focus || '';
+  const nextDayMap = { A: 'B', B: 'C', C: 'A' };
+  const nextDay = nextDayMap[day];
+
+  const title = `訓練 ${day} - ${focusText}`;
+  const exercises = dayData.exercises;
+  const lines = exercises.map(exercise => {
+    return `${exercise.name} (${exercise.sets} x ${exercise.reps} | ${exercise.restTime})`;
+  });
+
+  const details = `今天的訓練內容：\n${lines.join('\n')}\n\n下次訓練：Day ${nextDay}\n\n查看詳細：https://soft-conkies-e7624a.netlify.app/?day=${nextDay}`;
+
+  const now = new Date();
+  const startDate = formatDateOnly(now);
+  const endDate = formatDateOnly(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  const dates = `${startDate}/${endDate}`;
+
+  const webUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`;
+
+  // Check if Android and try to open Google Calendar app
+  if (navigator.userAgent.includes('Android')) {
+    const appUrl = `intent://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}#Intent;scheme=https;package=com.google.android.calendar;end`;
+    const fallbackTimeout = setTimeout(() => {
+      window.open(webUrl, '_blank');
+    }, 2000); // Wait 2 seconds for app to open
+
+    window.location.href = appUrl;
+
+    // If app opens, clear the timeout
+    window.addEventListener('blur', () => {
+      clearTimeout(fallbackTimeout);
+    }, { once: true });
+  } else {
+    window.open(webUrl, '_blank');
+  }
+}
+
+function formatDateOnly(date) {
+  const pad = n => String(n).padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  return `${y}${m}${d}`;
+}
+
+// Enhanced swipe gesture system with rich animations
+function initActionButtons() {
+  const cards = document.querySelectorAll('.card');
+
+  cards.forEach(card => {
+    const button = card.parentElement.querySelector('.complete-set-btn');
+    if (!button) return;
+
+    button.addEventListener('click', () => {
+      if (card.classList.contains('all-complete')) return;
+      if (card.dataset.timerActive === 'true') return;
+      completeSet(card);
+    });
+
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !card.classList.contains('all-complete') && card.dataset.timerActive !== 'true') {
+        e.preventDefault();
+        completeSet(card);
+      }
+    });
+
+    updateActionButtonLabel(card);
+  });
+}
+
+function updateActionButtonLabel(card) {
+  const button = card.parentElement.querySelector('.complete-set-btn');
+  if (!button) return;
+
+  const totalSets = parseInt(card.dataset.setCount || '0', 10);
+  const setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+  const currentSet = parseInt(card.dataset.currentSet || '1', 10);
+  const timerActive = card.dataset.timerActive === 'true';
+
+  if (setsCompleted >= totalSets) {
+    button.textContent = '已完成';
+    button.disabled = true;
+    button.classList.add('opacity-70', 'cursor-not-allowed');
+    return;
+  }
+
+  if (timerActive) {
+    button.textContent = '休息中...';
+    button.disabled = true;
+    button.classList.add('opacity-70', 'cursor-not-allowed');
+  } else {
+    button.textContent = `完成第 ${currentSet} 組`;
+    button.disabled = false;
+    button.classList.remove('opacity-70', 'cursor-not-allowed');
+  }
+}
+
+function completeSet(card) {
+  const setsTotal = parseInt(card.dataset.setCount || '0', 10);
+  let setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+  const currentSet = parseInt(card.dataset.currentSet || '1', 10);
+
+  if (setsCompleted >= setsTotal) {
+    // All sets already complete
+    card.style.transform = '';
+    return;
+  }
+
+  // Update set counters
+  setsCompleted++;
+  card.dataset.setsCompleted = setsCompleted;
+
+  // Animate completion
+  setCompleteAnimation(card, currentSet);
+
+  updateExerciseProgress(card, setsCompleted);
+  updateDayProgress();
+
+  const section = card.closest('.content-section');
+  const allDoneInSection = section ? Array.from(section.querySelectorAll('.card')).every(c => {
+    const completed = parseInt(c.dataset.setsCompleted || '0', 10);
+    const total = parseInt(c.dataset.setCount || '0', 10);
+    return completed >= total;
+  }) : false;
+
+  const restTimeSeconds = parseTime(card.dataset.restTime);
+  if (setsCompleted >= setsTotal) {
+    allSetsComplete(card);
+    if (!allDoneInSection && restTimeSeconds > 0) {
+      startRestTimerForSet(card, restTimeSeconds, setsCompleted);
+    }
+  } else if (restTimeSeconds > 0) {
+    card.dataset.currentSet = setsCompleted + 1;
+    startRestTimerForSet(card, restTimeSeconds, setsCompleted);
+  }
+
+  updateActionButtonLabel(card);
+
+  // Button feedback animation
+  card.animate(
+    [
+      { transform: 'scale(1)', offset: 0 },
+      { transform: 'scale(1.02)', offset: 0.5 },
+      { transform: 'scale(1)', offset: 1 }
+    ],
+    { duration: 300, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+  );
+}
+
+function setCompleteAnimation(card, setIndex) {
+  const dots = card.querySelectorAll('.dot');
+  const targetDot = dots[setIndex - 1];
+
+  if (targetDot) {
+    targetDot.classList.add('completed');
+    targetDot.classList.remove('active');
+    targetDot.classList.remove('timer-active');
+    targetDot.removeAttribute('data-timer');
+
+    // Add a class to trigger CSS animation
+    setTimeout(() => {
+      targetDot.classList.remove('completed');
+      targetDot.classList.add('completed');
+    }, 10);
+  }
+}
+
+function startRestTimerForSet(card, totalSeconds, setNumber) {
+  // Mark timer as active on the card
+  card.dataset.timerActive = 'true';
+  card.classList.add('timer-active');
+
+  const dots = card.querySelectorAll('.dot');
+  const activeDot = dots[setNumber - 1];
+
+  if (!activeDot) return;
+
+  // Add active and timer-active to show timer on the dot (dot should already have 'completed' class)
+  activeDot.classList.add('active', 'timer-active');
+
+  const endAt = Date.now() + totalSeconds * 1000;
+  const button = card.parentElement.querySelector('.complete-set-btn');
+  if (button) {
+    button.disabled = true;
+    button.classList.add('opacity-70', 'cursor-not-allowed');
+  }
+
+  const intervalId = setInterval(() => {
+    const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+    activeDot.setAttribute('data-timer', formatTime(remaining));
+
+    if (button) {
+      button.textContent = `休息 ${formatTime(remaining)}`;
+    }
+
+    if (remaining <= 0) {
+      clearInterval(intervalId);
+      activeDot.classList.remove('active', 'timer-active');
+      activeDot.removeAttribute('data-timer');
+
+      card.dataset.timerActive = 'false';
+      card.classList.remove('timer-active');
+
+      playAlarmThreeTimes();
+      updateActionButtonLabel(card);
+    }
+  }, 250);
+}
+
+function updateExerciseProgress(card, completedSets) {
+  const totalSets = parseInt(card.dataset.setCount || '0', 10);
+  if (totalSets === 0) return;
+
+  const percentage = (completedSets / totalSets) * 100;
+  card.style.setProperty('--progress', `${percentage}%`);
+}
+
+function allSetsComplete(card) {
+  card.classList.add('all-complete');
+  card.classList.add('celebrating');
+
+  // Celebration animation
+  card.animate([
+    { transform: 'scale(1)', offset: 0 },
+    { transform: 'scale(1.04)', offset: 0.5 },
+    { transform: 'scale(1)', offset: 1 }
+  ], {
+    duration: 600,
+    easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+  });
+
+  // Update exercise name to show completion
+  const nameEl = card.querySelector('[data-exercise-name]');
+  if (nameEl && !nameEl.textContent.includes('✅')) {
+    const nameText = nameEl.textContent;
+    nameEl.innerHTML = nameText.replace(/\d+\.\s*/, '$&✅ ');
+  }
+
+  // Remove celebration class after animation
+  setTimeout(() => {
+    card.classList.remove('celebrating');
+  }, 600);
+
+  // Check if entire day is complete
+  checkAllExercisesCompleted();
+}
+
+function checkAllExercisesCompleted() {
+  const sections = ['dayA', 'dayB', 'dayC'];
+  const currentSection = document.getElementById(`day${currentDay}`);
+  if (!currentSection) return;
+
+  // Guard against multiple triggers
+  if (currentSection.dataset.congratsShown === 'true') return;
+
+  const cards = Array.from(currentSection.querySelectorAll('.card'));
+  const exercisesCount = cards.length;
+  const completeExercises = cards.filter(card =>
+    parseInt(card.dataset.setsCompleted || '0', 10) >=
+    parseInt(card.dataset.setCount || '0', 10)
+  ).length;
+
+  if (exercisesCount > 0 && completeExercises === exercisesCount) {
+    currentSection.dataset.congratsShown = 'true';
+    // All exercises complete for this day
+    setTimeout(() => {
+      showCompletionDialog();
+    }, 800);
+  }
+}
+
+function initProgressTracking() {
+  // Load saved progress from localStorage
+  const savedProgress = localStorage.getItem(`workout-progress-day${currentDay}`);
+  if (savedProgress) {
+    try {
+      const progressData = JSON.parse(savedProgress);
+      applySavedProgress(progressData);
+    } catch (e) {
+      console.log('No valid saved progress found');
+    }
+  }
+}
+
+function applySavedProgress(progressData) {
+  Object.entries(progressData).forEach(([exerciseId, {setsCompleted, currentSet}]) => {
+    const card = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+    if (card) {
+      card.dataset.setsCompleted = setsCompleted;
+      card.dataset.currentSet = currentSet;
+
+      const dots = card.querySelectorAll('.dot');
+      dots.forEach((dot, index) => {
+        if (index < setsCompleted) {
+          dot.classList.add('completed');
+        }
+      });
+
+      updateExerciseProgress(card, setsCompleted);
+
+      if (setsCompleted >= parseInt(card.dataset.setCount || '0', 10)) {
+        allSetsComplete(card);
+      } else {
+        updateActionButtonLabel(card);
+      }
+    }
+  });
+
+  updateDayProgress();
+}
+
+function saveProgress() {
+  const cards = document.querySelectorAll('.card');
+  const progressData = {};
+
+  cards.forEach(card => {
+    const exerciseId = card.dataset.exerciseId;
+    const setsCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+    const currentSet = parseInt(card.dataset.currentSet || '1', 10);
+
+    if (setsCompleted > 0 || currentSet > 1) {
+      progressData[exerciseId] = {
+        setsCompleted,
+        currentSet,
+        timestamp: Date.now()
+      };
+    }
+  });
+
+  localStorage.setItem(`workout-progress-day${currentDay}`, JSON.stringify(progressData));
+}
+
+function updateDayProgress() {
+  const currentSection = document.getElementById(`day${currentDay}`);
+  if (!currentSection) return;
+
+  const cards = Array.from(currentSection.querySelectorAll('.card'));
+  if (cards.length === 0) return;
+
+  let totalSets = 0;
+  let completedSets = 0;
+
+  cards.forEach(card => {
+    const cardTotal = parseInt(card.dataset.setCount || '0', 10);
+    const cardCompleted = parseInt(card.dataset.setsCompleted || '0', 10);
+    totalSets += cardTotal;
+    completedSets += cardCompleted;
+  });
+
+  const percentage = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
+
+  // Update UI
+  const progressBar = document.getElementById('dayProgressBar');
+  const progressLabel = document.getElementById('dayProgressLabel');
+
+  if (progressBar && progressLabel) {
+    progressBar.style.width = `${percentage}%`;
+    progressLabel.textContent = `Day ${currentDay} 進度：${percentage}%`;
+  }
+
+  // Auto-save progress
+  setTimeout(saveProgress, 100);
+}
+
+// Override the completion detection for backward compatibility
+// Keep the button-based completion working alongside swipe
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('rest-btn')) {
+    // Check completion after button interaction
+    setTimeout(() => {
+      checkAllExercisesCompleted();
+      updateDayProgress();
+    }, 500);
+  }
+}, true);
+</script>
 </body>
 </html>
