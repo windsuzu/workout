@@ -41,6 +41,7 @@ export function fixture() {
     if (failSync && !match[3]) return response({ error: 'temporary failure' }, 503);
     if (match[3]) {
       const event = rows.get(id); if (!event) return response({}, 404);
+      if (options.headers['If-Match'] && event.etag !== options.headers['If-Match']) return response({}, 412);
       const destination = `${user}/${url.searchParams.get('destination')}`;
       if (!events.has(destination)) events.set(destination, new Map()); events.get(destination).set(id, event); rows.delete(id); return response(event);
     }

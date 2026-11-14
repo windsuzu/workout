@@ -89,7 +89,7 @@ test('concurrent calendar setup creates one dedicated calendar', async () => {
 
 test('migration previews only personal workouts and moves exactly selected records unchanged', async () => {
   const f = fixture(), cookie = await f.login(); await f.request('/api/calendar/setup', { cookie, method: 'POST', data: {} });
-  const workout = { id: 'old-a', summary: '訓練 A - Strength', description: 'Original notes and reps', organizer: { self: true }, start: { date: '2026-10-20' }, end: { date: '2026-10-21' }, reminders: { useDefault: true } };
+  const workout = { id: 'old-a', etag: 'original-event', summary: '訓練 A - Strength', description: 'Original notes and reps', organizer: { self: true }, start: { date: '2026-10-20' }, end: { date: '2026-10-21' }, reminders: { useDefault: true } };
   const unselected = { ...workout, id: 'old-b' }, unrelated = { ...workout, id: 'meeting', summary: 'Dentist' };
   f.events.set('u1/primary', new Map([['old-a', workout], ['old-b', unselected], ['meeting', unrelated]]));
   const preview = await (await f.request('/api/import/preview?from=2026-10-01&to=2026-11-01', { cookie })).json(); assert.equal(preview.events.length, 2);
@@ -120,4 +120,20 @@ test('migration rejects recurring masters, instances, and events converted after
   assert.equal(result.moved.length, 0); assert.equal(result.failed.length, 3);
   assert.equal(f.calls.some(call => new URL(call.url).pathname.endsWith('/move')), false);
   assert.equal(f.events.get('u1/primary').size, 3);
+});
+
+test('migration refuses a source event changed between its eligibility read and move', async () => {
+  const f = fixture(), cookie = await f.login(); await f.request('/api/calendar/setup', { cookie, method: 'POST', data: {} });
+  const event = { id: 'changed-during-move', etag: 'v1', summary: '訓練 A - Strength', organizer: { self: true }, start: { date: '2026-10-20' }, end: { date: '2026-10-21' } };
+  f.events.set('u1/primary', new Map([[event.id, event]]));
+  f.setGoogleHook(url => { if (url.pathname.endsWith('/move')) { event.recurrence = ['RRULE:FREQ=DAILY']; event.etag = 'v2'; } });
+  const result = await (await f.request('/api/import', { cookie, method: 'POST', data: { eventIds: [event.id] } })).json();
+  assert.equal(result.moved.length, 0); assert.equal(result.failed.length, 1); assert.ok(f.events.get('u1/primary').has(event.id));
+});
+
+test('malformed external structured history does not break the history endpoint', async () => {
+  const f = fixture(), cookie = await f.login();
+  f.events.set('u1/primary', new Map([['bad-detail', { id: 'bad-detail', summary: '訓練 A - Strength', start: { date: '2026-10-20' }, end: { date: '2026-10-21' }, description: 'FORM_WORKOUT_V1\n{"exercises":[null,{},false]}\nEND_FORM_WORKOUT' }]]));
+  const response = await f.request('/api/history?from=2026-10-01&to=2026-11-01', { cookie });
+  assert.equal(response.status, 200); assert.deepEqual((await response.json()).events[0].exercises, []);
 });

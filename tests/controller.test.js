@@ -63,3 +63,34 @@ test('pausing expired rest normalizes it to ready and keeps the combined action 
   c.toggleRest(); assert.equal(c.exercise.timer.phase, 'ready'); assert.equal(c.exercise.timer.remaining, 0);
   c.complete(1, { weight: 20, reps: 8 }); assert.ok(c.exercise.logs[1]);
 });
+
+test('a delayed state read cannot replace newer acknowledged defaults', async t => {
+  const { c, afterRequest } = await client(t);
+  let release, entered; const blocked = new Promise(resolve => { release = resolve; }), started = new Promise(resolve => { entered = resolve; });
+  afterRequest(async path => { if (path === '/api/state') { entered(); await blocked; } });
+  const pull = c.pull(); await started;
+  c.updateExercise({ weight: 37.5 }, 'future'); await c.flush();
+  release(); await pull; c.newWorkout();
+  assert.equal(c.exercise.weight, 37.5); assert.equal(c.data.cloudPlan.version, 1);
+});
+
+test('a delayed history read cannot overwrite a newer correction acknowledgement', async t => {
+  const { c, afterRequest } = await client(t); await c.setupCalendar();
+  c.online = false; c.complete(0, { weight: 20, reps: 8 }); c.finish(); c.online = true; await c.flush();
+  let release, entered; const blocked = new Promise(resolve => { release = resolve; }), started = new Promise(resolve => { entered = resolve; });
+  afterRequest(async path => { if (path.startsWith('/api/history')) { entered(); await blocked; } });
+  const refresh = c.refreshHistory(); await started;
+  c.editSet(0, 'weight', 25); await c.flush(); release(); await refresh; c.online = false;
+  assert.equal(c.history()[0].exercises[0].logs[0].weight, 25);
+});
+
+test('a delayed plan acknowledgement cannot replace a newer cloud plan', async t => {
+  const { c, f, afterRequest } = await client(t);
+  let release, entered; const blocked = new Promise(resolve => { release = resolve; }), started = new Promise(resolve => { entered = resolve; });
+  afterRequest(async path => { if (path === '/api/plan') { entered(); await blocked; } });
+  c.updateExercise({ weight: 25 }, 'future'); const flush = c.flush(); await started;
+  const cookie = await f.login();
+  await f.request('/api/plan', { cookie, method: 'PATCH', data: { operationId: 'other-device', changes: [{ exerciseId: 'a-0', field: 'rest', expected: 90, value: 150 }] } });
+  await c.pull(); release(); await flush;
+  assert.equal(c.data.cloudPlan.version, 2); assert.equal(c.data.plan.days.A.exercises[0].rest, 150); assert.equal(c.data.plan.days.A.exercises[0].weight, 25);
+});

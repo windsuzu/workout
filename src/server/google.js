@@ -107,7 +107,8 @@ export class GoogleCalendar {
           throw new AppError('This event is no longer on your main calendar.');
         }
         if (!isLegacyWorkout(event) || !event.organizer?.self || event.recurringEventId || event.recurrence?.length || (event.attendees || []).some(a => !a.self)) throw new AppError('This event is not an eligible personal workout.');
-        await this.request(user, `${path}/move`, { method: 'POST', query: { destination: user.calendarId, sendUpdates: 'none' } }); moved.push(id);
+        if (!event.etag) throw new AppError('Google did not provide an event version. Refresh the preview and retry.');
+        await this.request(user, `${path}/move`, { method: 'POST', headers: { 'If-Match': event.etag }, query: { destination: user.calendarId, sendUpdates: 'none' } }); moved.push(id);
       } catch (error) { failed.push({ id, error: error instanceof AppError ? error.message : 'Could not move this event.' }); }
     }
     return { moved, failed };

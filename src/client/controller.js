@@ -121,7 +121,9 @@ export class Controller extends EventTarget {
   }
   finish() { finishSession(this.current, this.current.status === 'completed' ? Date.parse(this.current.endedAt) : Date.now()); this.queueSession(); this.view = 'review'; this.notice = ''; this.changed(); void this.flush(); }
   async pull() {
-    const cloud = await this.api('/state'); this.data.cloudPlan = cloud.plan; this.rebuildPlan();
+    const cloud = await this.api('/state');
+    if (cloud.plan.version >= this.data.cloudPlan.version) this.data.cloudPlan = cloud.plan;
+    this.rebuildPlan();
     for (const session of cloud.drafts) {
       const local = this.data.sessions[session.id];
       if (!this.data.outbox[session.id] && (!local || session.revision > local.revision)) this.data.sessions[session.id] = session;
@@ -142,7 +144,8 @@ export class Controller extends EventTarget {
         const operation = clone(this.data.planOps[0]);
         const response = await this.api('/plan', { method: 'PATCH', body: JSON.stringify(operation) });
         this.data.planOps = this.data.planOps.filter(item => item.operationId !== operation.operationId);
-        this.data.cloudPlan = response.plan; this.rebuildPlan(); this.persist();
+        if (response.plan.version >= this.data.cloudPlan.version) this.data.cloudPlan = response.plan;
+        this.rebuildPlan(); this.persist();
       }
       for (const id of Object.keys(this.data.outbox)) {
         const queued = this.data.outbox[id]; if (!queued) continue;
@@ -154,6 +157,7 @@ export class Controller extends EventTarget {
           if (response.syncError) { this.error = response.syncError.message; this.syncErrorCode = response.syncError.code; if (response.syncError.code === 'reconnect_required') this.authorized = false; this.persist(); break; }
           delete this.data.outbox[id];
           if (response.session.status === 'completed') {
+            this.historyEpoch = (this.historyEpoch || 0) + 1;
             const row = { ...historyEvent({ ...sessionEvent(response.session), id: response.session.eventId || id, htmlLink: response.session.eventUrl }, response.session.calendarId || 'local'), sync: response.session.sync };
             this.data.history = this.data.history.filter(event => event.sessionId !== id); this.data.history.push(row);
           }
@@ -181,7 +185,9 @@ export class Controller extends EventTarget {
       start = `${this.month}-01`;
       const [year, month] = this.month.split('-').map(Number); to = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
     }
+    const epoch = this.historyEpoch || 0;
     const result = await this.api(`/history?from=${start}&to=${to}`);
+    if (epoch !== (this.historyEpoch || 0)) return;
     const rows = new Map(this.data.history.filter(e => e.date < start || e.date >= to).map(e => [`${e.calendarId}:${e.id}`, e]));
     for (const event of result.events) rows.set(`${event.calendarId}:${event.id}`, event);
     this.data.history = [...rows.values()]; this.calendar = result.calendar;

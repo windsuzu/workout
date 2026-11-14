@@ -14,5 +14,9 @@ The initial implementation received three independent reviews, each starting wit
 | Same-date sessions were ordered by insertion rather than time. | Share descending timestamp ordering between server and client history. | Chronology test distinguishes morning and evening workouts. |
 | Pausing just after rest expiry could leave a zero-second paused timer stuck. | Normalize elapsed rest to ready. | Controller test completes the next set after this boundary. |
 | Migration could move a recurring series converted after preview. | Reject masters with recurrence as well as recurring instances at preview and move time. | API test verifies neither series nor instances reach Google's move endpoint. |
+| Older state/plan responses could replace newer acknowledged defaults. | Accept cloud plans monotonically by version in both pull and acknowledgement paths. | Controller tests delay state and plan responses across newer saves/reads. |
+| In-flight history could overwrite a newly acknowledged correction. | Ignore history responses started before a newer correction acknowledgement. | Controller test delays old history across a successful correction. |
+| Migration eligibility could change between its final read and move. | Require the source etag and condition the move with If-Match. | API test changes recurrence and etag immediately before the move. |
+| Malformed Calendar JSON containing null exercises could break history. | Validate exercise objects before accessing their fields. | API test keeps malformed structured entries from breaking history. |
 
 The revised implementation must pass the automated checks and independent re-review before it is merged. Live Google authentication remains a final account-owner check after deployment; automated tests use an isolated provider and never mutate the real calendar.
