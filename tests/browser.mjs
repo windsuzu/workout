@@ -113,6 +113,13 @@ try {
   await second.getByRole('button', { name: 'Save exercise settings', exact: true }).click();
   await waitFor(() => Promise.resolve(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].weight === 27.5), 'Repeated future edits did not save.');
   assert.equal(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].rest, 60);
+  await second.locator('[data-action=exercise-settings]').first().click();
+  await second.locator('.dialog input[name=weight]').fill('39');
+  const backgroundPull = second.waitForResponse(response => response.url().endsWith('/api/state'));
+  await second.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await backgroundPull;
+  await second.getByRole('button', { name: 'Save exercise settings', exact: true }).click();
+  await second.locator('.dialog').waitFor({ state: 'hidden' });
+  await waitFor(() => Promise.resolve(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].weight === 39), 'Background refresh discarded unsaved exercise settings.');
   assert.equal(f.store.rows.get('users/u1').data.plan.days.A.exercises[0].angle, 45);
   await second.getByRole('button', { name: 'Start a new workout for this day →', exact: true }).click();
   await second.locator('[data-action=exercise-settings]').first().click();

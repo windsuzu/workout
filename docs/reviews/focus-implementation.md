@@ -19,4 +19,6 @@ The initial implementation received three independent reviews, each starting wit
 | Migration eligibility could change between its final read and move. | Require the source etag and condition the move with If-Match. | API test changes recurrence and etag immediately before the move. |
 | Malformed Calendar JSON containing null exercises could break history. | Validate exercise objects before accessing their fields. | API test keeps malformed structured entries from breaking history. |
 
+| Background refresh could replace a form between input blur and submission. | Preserve open dialog forms during background rendering; explicit submit/close/task completion controls replacement. | Browser regression refreshes while editing, then saves the entered value. |
+
 The revised implementation must pass the automated checks and independent re-review before it is merged. Live Google authentication remains a final account-owner check after deployment; automated tests use an isolated provider and never mutate the real calendar.

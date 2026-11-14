@@ -23,7 +23,7 @@ function initializeIcons() { createIcons({ icons: { Activity, Dumbbell, Calendar
 function isTyping() { return root.contains(document.activeElement) && document.activeElement.matches('input,textarea,select'); }
 function render(force = false) {
   if (!c.data) return;
-  if (!force && isTyping()) { ui.pendingRender = true; return; }
+  if (!force && (isTyping() || (ui.dialog && root.querySelector('.dialog form')))) { ui.pendingRender = true; return; }
   ui.pendingRender = false;
   const body = { workout: views.workout, calendar: views.calendar, insights: views.insights, review: views.review }[c.view] || views.workout;
   const dialog = ui.dialog === 'exercise' ? views.exerciseDialog(c, ui) : ui.dialog === 'account' ? views.accountDialog(c, ui) : ui.dialog === 'import' ? views.importDialog(c, ui) : '';
