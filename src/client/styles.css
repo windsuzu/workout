@@ -187,3 +187,14 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .day-tabs button[aria-pressed=true]{background:color-mix(in srgb,var(--day-accent) 12%,var(--surface));color:var(--day-accent);box-shadow:inset 0 0 0 1px var(--day-accent)}
 #workout-focus .day-pill[data-workout-day=A],#workout-focus .day-pill[data-workout-day=B],#workout-focus .day-pill[data-workout-day=C]{color:var(--day-accent);background:color-mix(in srgb,var(--day-accent) 12%,var(--surface))}
 #workout-focus .bar-row[data-workout-day] .bar-track>div{background:var(--day-accent)}
+
+/* Calendar colors identify the logged day, independently of the training tab. */
+#workout-focus .heat-day{--calendar-accent:var(--day-accent,var(--muted))}
+#workout-focus .heat-day.trained,#workout-focus .heat-day.trained[aria-pressed=true]{background:color-mix(in srgb,var(--calendar-accent) 22%,var(--surface));color:var(--ink)}
+#workout-focus .heat-day.multiple[data-workout-day],#workout-focus .heat-day.multiple[data-workout-day][aria-pressed=true]{background:var(--calendar-accent);color:var(--on-action)}
+#workout-focus .heat-day.chosen{outline-color:var(--calendar-accent)}
+#workout-focus .heat-marks{position:absolute;bottom:4px;left:0;right:0;display:flex;justify-content:center;gap:3px}
+#workout-focus .heat-marks i{width:4px;height:4px;border-radius:50%;background:var(--day-accent,currentColor)}
+#workout-focus .heat-day.multiple[data-workout-day] .heat-marks i{background:currentColor}
+#workout-focus .heat-legend i[data-workout-day]{background:var(--day-accent)}
+#workout-focus .history-entry[data-workout-day=A],#workout-focus .history-entry[data-workout-day=B],#workout-focus .history-entry[data-workout-day=C]{border-left:3px solid var(--day-accent);padding:12px;background:color-mix(in srgb,var(--day-accent) 6%,var(--surface));border-radius:10px}

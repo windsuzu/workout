@@ -54,3 +54,11 @@ test('same-day workouts use actual chronology instead of insertion order', () =>
   const old = { id: 'c', date: '2026-11-13' };
   assert.deepEqual([morning, old, evening].sort(newestFirst).map(row => row.id), ['b', 'a', 'c']);
 });
+
+test('Google Calendar event colors consistently identify workout days', () => {
+  const plan = seedPlan(seed);
+  for (const [day, color] of Object.entries({ A: '7', B: '3', C: '5' })) {
+    const session = newSession(plan, day); completeSet(session, session.exercises[0].id, 0, { weight: 20, reps: 8 }); finishSession(session);
+    assert.equal(sessionEvent(session).colorId, color);
+  }
+});

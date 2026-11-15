@@ -6,7 +6,7 @@ import * as views from './views.js';
 const root = document.getElementById('workout-focus'), phone = root.querySelector('.phone');
 const c = new Controller();
 const ui = { dialog: null, error: '', busy: false, pendingRender: false, calendars: null };
-let audio, ticker, wakeLock;
+let audio, ticker, wakeLock, backdropPointer, backdropRelease;
 
 function activateAudio() {
   const Audio = window.AudioContext || window.webkitAudioContext;
@@ -37,6 +37,10 @@ function updateStatus() {
   initializeIcons();
 }
 function showError(error) { c.notice = error.message || 'Could not complete this action.'; if (ui.dialog) ui.error = c.notice; render(true); }
+function closeDialog() {
+  const exercise = ui.dialog === 'exercise'; ui.dialogEpoch = (ui.dialogEpoch || 0) + 1; ui.dialog = null; ui.error = ''; render(true);
+  root.querySelector(exercise ? '[data-action=exercise-settings]' : '[aria-label="Account and settings"]')?.focus();
+}
 async function task(action) {
   if (ui.busy) return;
   ui.busy = true; ui.error = ''; render();
@@ -45,10 +49,11 @@ async function task(action) {
 }
 
 c.addEventListener('change', () => render()); c.addEventListener('status', updateStatus);
-root.addEventListener('pointerdown', activateAudio); root.addEventListener('keydown', activateAudio);
+root.addEventListener('pointerdown', event => { activateAudio(); backdropPointer = event.target.matches('.modal-backdrop') ? event.target : null; backdropRelease = null; }); root.addEventListener('keydown', activateAudio);
+root.addEventListener('pointerup', event => { backdropRelease = event.target.matches('.modal-backdrop') ? event.target : null; });
 root.addEventListener('focusout', () => queueMicrotask(() => { if (ui.pendingRender && !isTyping()) render(); }));
 root.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && ui.dialog) { ui.dialog = null; ui.error = ''; render(true); }
+  if (event.key === 'Escape' && ui.dialog) closeDialog();
   if (event.key === 'Tab' && ui.dialog) {
     const items = [...root.querySelectorAll('.dialog button:not(:disabled),.dialog input,.dialog select,.dialog textarea,.dialog a[href]:not(.disabled-link)')].filter(item => item.getClientRects().length);
     if (items.length && event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
@@ -57,6 +62,7 @@ root.addEventListener('keydown', event => {
 });
 
 root.addEventListener('click', async event => {
+  if (event.target.matches('.modal-backdrop') && backdropPointer === event.target && backdropRelease === event.target) { backdropPointer = null; closeDialog(); return; }
   const button = event.target.closest('button'); if (!button || button.disabled || !c.data) return;
   try {
     if (button.dataset.day) return c.setDay(button.dataset.day);
@@ -89,7 +95,7 @@ root.addEventListener('click', async event => {
       }
       case 'new-workout': return c.newWorkout();
       case 'exercise-settings': ui.dialog = 'exercise'; ui.error = ''; render(true); root.querySelector('input[name=weight]')?.focus(); return;
-      case 'close-dialog': ui.dialog = null; ui.error = ''; return render(true);
+      case 'close-dialog': closeDialog(); return;
       case 'account': {
         ui.dialog = 'account'; ui.error = ''; render();
         const guest = await c.storage.get('account:guest');
@@ -104,9 +110,11 @@ root.addEventListener('click', async event => {
       case 'sign-out': return task(async () => { await c.persistChain; await c.api('/logout', { method: 'POST', body: '{}' }); await c.storage.set('last-account', null); location.assign('/'); });
       case 'import-local': return task(async () => { await c.importLocalWorkouts(); ui.guestImport = 0; });
       case 'import-preview': return task(async () => {
+        const originalDialog = ui.dialog;
+        const dialogEpoch = ui.dialogEpoch || 0;
         const today = new Date(), from = new Date(today); from.setMonth(from.getMonth() - 6);
         ui.importFrom = from.toISOString().slice(0, 10); ui.importTo = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-        ui.importEvents = (await c.api(`/import/preview?from=${ui.importFrom}&to=${ui.importTo}`)).events; ui.dialog = 'import';
+        ui.importEvents = (await c.api(`/import/preview?from=${ui.importFrom}&to=${ui.importTo}`)).events; if (ui.dialog === originalDialog && (ui.dialogEpoch || 0) === dialogEpoch) ui.dialog = 'import';
       });
       case 'move-selected': {
         const eventIds = [...root.querySelectorAll('[data-import-id]:checked')].map(input => input.dataset.importId);
