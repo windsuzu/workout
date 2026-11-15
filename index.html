@@ -6,13 +6,25 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#11151c">
   <meta name="description" content="A focused workout tracker with editable sets, exercise-specific rest timers, and Google Calendar history.">
+  <style>
+    html{background:#0b0e13;color-scheme:dark}body{margin:0}
+    #workout-focus .stage{display:flex;justify-content:center;padding:24px 12px}
+    #workout-focus .phone{width:min(100%,420px);background:#11151c;color:#eaf0f7;border-radius:26px;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
+    .app-boot{box-sizing:border-box;min-height:640px;padding:24px;display:grid;gap:32px;align-content:start}
+    .boot-brand{font-size:18px;font-weight:600;letter-spacing:2px}.boot-heading{margin:0;font-size:28px;font-weight:500;letter-spacing:-1px}.boot-status{color:#a8b4c5;font-size:13px;margin:10px 0 0}
+    .boot-days{display:flex;gap:6px}.boot-days span{height:4px;flex:1;border-radius:4px;background:#5bd6ef}.boot-days span:nth-child(2){background:#bea4ff}.boot-days span:nth-child(3){background:#ffc166}
+    .boot-card{display:grid;gap:24px;padding:24px 18px;border-radius:22px;background:#1a202a}
+    .boot-line{height:14px;border-radius:7px;background:#303b4a;animation:boot-breathe 1.6s ease-in-out infinite}.boot-line.short{width:45%}.boot-line.weight{height:48px;width:36%;margin:8px auto}.boot-line.action{height:44px;background:#263e49}.boot-rows{display:grid;gap:10px}.boot-rows .boot-line{height:40px}
+    @keyframes boot-breathe{0%,100%{opacity:.45}50%{opacity:1}}
+    @media(prefers-reduced-motion:reduce){.boot-line{animation:none}}
+  </style>
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/assets/app.css">
   <title>FORM · Workout</title>
 </head>
 <body>
-  <div id="workout-focus"><div class="stage"><div class="phone" aria-label="FORM workout app"><main class="app-body"><h1>FORM</h1><p role="status">Loading your workouts…</p><noscript>Enable JavaScript to use your workout tracker.</noscript></main></div></div></div>
+  <div id="workout-focus"><div class="stage"><div class="phone" aria-label="FORM workout app"><main class="app-boot" aria-busy="true"><div class="boot-brand">FORM</div><div><h1 class="boot-heading">Ready when you are.</h1><p class="boot-status" role="status">Preparing your workout…</p></div><div class="boot-days" aria-hidden="true"><span></span><span></span><span></span></div><div class="boot-card" aria-hidden="true"><div class="boot-line short"></div><div class="boot-line"></div><div class="boot-line weight"></div><div class="boot-rows"><div class="boot-line"></div><div class="boot-line"></div></div><div class="boot-line action"></div></div><noscript>Enable JavaScript to use your workout tracker.</noscript></main></div></div></div>
   <script type="module" src="/assets/app.js"></script>
 </body>
 </html>

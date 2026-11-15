@@ -36,7 +36,26 @@ async function changeSettings(values) {
 }
 
 try {
-  await page.goto(origin); await phone.locator('.exercise-card').waitFor();
+  let releaseBoot; const bootGate = new Promise(resolve => { releaseBoot = resolve; });
+  let bootReady = false;
+  await page.route('**/api/me', async route => { if (!bootReady) await bootGate; await route.continue(); });
+  await page.goto(origin, { waitUntil: 'commit' }); await phone.locator('.app-boot').waitFor();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await phone.locator('.boot-line').first().evaluate(el => getComputedStyle(el).animationName), 'none');
+  await page.screenshot({ path: 'test-results/loading-screen.png', fullPage: true });
+  bootReady = true; releaseBoot(); await phone.locator('.exercise-card').waitFor();
+  await phone.locator('[data-action=exercise-settings]').first().click();
+  const originalWeight = await phone.locator('.dialog input[name=weight]').inputValue();
+  await phone.locator('.dialog input[name=weight]').fill('33');
+  await phone.locator('.dialog h2').click(); assert.equal(await phone.locator('.dialog').count(), 1);
+  const titleBox = await phone.locator('.dialog h2').boundingBox();
+  await page.mouse.move(titleBox.x + 5, titleBox.y + 5); await page.mouse.down(); await page.mouse.move(2, 2); await page.mouse.up();
+  assert.equal(await phone.locator('.dialog').count(), 1);
+  await phone.locator('.modal-backdrop').click({ position: { x: 2, y: 2 } });
+  await phone.locator('.dialog').waitFor({ state: 'hidden' });
+  await phone.locator('[data-action=exercise-settings]').first().click();
+  assert.equal(await phone.locator('.dialog input[name=weight]').inputValue(), originalWeight);
+  await closeDialog();
   assert.equal(await phone.locator('.day-tabs [data-day]').count(), 3);
   assert.equal(await phone.getByRole('button', { name: /^Start rest$/ }).count(), 0);
   assert.match(await phone.locator('[data-action=complete]').textContent(), /Complete set 1 & rest/);
@@ -88,6 +107,15 @@ try {
   const saved = [...f.events.get('u1/cal-u1').values()][0];
   assert.match(saved.description, /Set 2: 25 kg × 9 reps/); assert.match(saved.description, /bench 30°/);
   assert.equal(saved.extendedProperties.private.formVersion, '1');
+  assert.equal(saved.colorId, '7');
+  let releaseImport; const importGate = new Promise(resolve => { releaseImport = resolve; });
+  await page.route(/\/api\/import\/preview\?/, async route => { await importGate; await route.continue(); });
+  const importStarted = page.waitForRequest(request => request.url().includes('/api/import/preview?'));
+  await phone.getByRole('button', { name: 'Preview old workouts', exact: true }).click(); await importStarted;
+  await phone.locator('.modal-backdrop').click({ position: { x: 2, y: 2 } });
+  await phone.locator('.dialog').waitFor({ state: 'hidden' }); await settings();
+  releaseImport(); await phone.getByText('Working…', { exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(await phone.locator('.dialog h2').textContent(), 'Account & sync');
   await closeDialog();
   // A second browser obtains defaults and history from the account, not this device's cache.
   const other = await browser.newContext({ viewport: { width: 390, height: 1000 }, timezoneId: 'Asia/Taipei' });
@@ -110,7 +138,7 @@ try {
     const results = []; source.parentElement.append(probe);
     try {
       for (const day of ['A', 'B', 'C']) for (const multiple of [false, true]) for (const selected of [false, true]) {
-        phone.dataset.day = day; probe.classList.toggle('multiple', multiple); probe.classList.toggle('chosen', selected); probe.setAttribute('aria-pressed', String(selected));
+        phone.dataset.day = day; probe.dataset.workoutDay = day; probe.classList.toggle('multiple', multiple); probe.classList.toggle('chosen', selected); probe.setAttribute('aria-pressed', String(selected));
         const style = getComputedStyle(probe), text = luminance(style.color), background = luminance(style.backgroundColor);
         results.push({ day, multiple, selected, ratio: (Math.max(text, background) + .05) / (Math.min(text, background) + .05) });
       }

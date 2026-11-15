@@ -164,6 +164,7 @@ export function sessionEvent(session, timeZone = 'Asia/Taipei') {
   const summary = { id: session.id, day: session.day, exercises: session.exercises.filter(e => e.logs.some(Boolean)).map(e => ({ id: e.id, name: e.name, unit: e.unit, angle: e.angle, logs: e.logs })) };
   lines.push('FORM_WORKOUT_V1', JSON.stringify(summary), 'END_FORM_WORKOUT');
   return { summary: `訓練 ${session.day} - ${session.focus}`, description: lines.join('\n'),
+    colorId: { A: '7', B: '3', C: '5' }[session.day],
     start: { dateTime: session.startedAt, timeZone }, end: { dateTime: session.endedAt, timeZone },
     transparency: 'transparent', visibility: 'private', reminders: { useDefault: false },
     extendedProperties: { private: { formVersion: '1', formSessionId: session.id } } };
