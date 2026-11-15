@@ -25,6 +25,7 @@ function render(force = false) {
   if (!c.data) return;
   if (!force && (isTyping() || (ui.dialog && root.querySelector('.dialog form')))) { ui.pendingRender = true; return; }
   ui.pendingRender = false;
+  phone.dataset.day = c.day;
   const body = { workout: views.workout, calendar: views.calendar, insights: views.insights, review: views.review }[c.view] || views.workout;
   const dialog = ui.dialog === 'exercise' ? views.exerciseDialog(c, ui) : ui.dialog === 'account' ? views.accountDialog(c, ui) : ui.dialog === 'import' ? views.importDialog(c, ui) : '';
   phone.innerHTML = views.header(c) + `<div id="global-status">${views.status(c)}</div>` + body(c) + views.nav(c) + dialog;
