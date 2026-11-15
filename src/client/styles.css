@@ -89,16 +89,16 @@
 #workout-focus .weekdays,#workout-focus .heat-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
 #workout-focus .weekdays{padding-bottom:8px;font-size:11px;color:var(--muted);text-align:center}
 #workout-focus .heat-day{padding:0;min-height:41px;border:0;background:var(--line);border-radius:8px;position:relative;font-size:12px;font-weight:500}
-#workout-focus .heat-day.trained{background:color-mix(in srgb,var(--action) 65%,var(--surface));color:var(--ink)}
+#workout-focus .heat-day.trained{background:color-mix(in srgb,var(--action) 22%,var(--surface));color:var(--ink)}
 #workout-focus .heat-day.multiple{background:var(--action);color:var(--on-action)}
 #workout-focus .heat-day.chosen{outline:2px solid var(--action);outline-offset:1px;background:var(--line);color:var(--ink)}
-#workout-focus .heat-day.trained[aria-pressed=true]{background:color-mix(in srgb,var(--action) 65%,var(--surface));color:var(--ink)}
+#workout-focus .heat-day.trained[aria-pressed=true]{background:color-mix(in srgb,var(--action) 22%,var(--surface));color:var(--ink)}
 #workout-focus .heat-day.multiple[aria-pressed=true]{background:var(--action);color:var(--on-action)}
 #workout-focus .heat-mark{width:3px;height:3px;border-radius:50%;background:currentColor;position:absolute;bottom:5px;left:calc(50% - 1.5px)}
 #workout-focus .heat-legend{display:flex;justify-content:flex-end;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--muted)}
 #workout-focus .heat-legend span{display:flex;gap:5px;align-items:center}
 #workout-focus .heat-legend i{width:9px;height:9px;border-radius:2px;background:var(--line)}
-#workout-focus .heat-legend .filled{background:color-mix(in srgb,var(--action) 65%,var(--surface))}
+#workout-focus .heat-legend .filled{background:color-mix(in srgb,var(--action) 22%,var(--surface))}
 #workout-focus .selected-day{display:grid;gap:12px;padding-top:18px;border-top:1px solid var(--line)}
 #workout-focus .history-entry{font-size:13px;border-bottom:1px solid var(--line);padding-bottom:12px}
 #workout-focus .history-entry summary{min-height:44px;line-height:1.5;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}

@@ -98,6 +98,26 @@ try {
   assert.equal(await second.locator('.set-row:not(.set-columns)').count(), 3);
   await second.locator('[data-view=calendar]').click();
   await waitFor(async () => (await second.locator('.month-count strong').textContent()) === '1', 'Real history did not load.');
+  const calendarContrast = await second.locator('.heat-day.trained').evaluate(source => {
+    const phone = source.closest('.phone'), originalDay = phone.dataset.day, probe = source.cloneNode(true);
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
+    const context = canvas.getContext('2d');
+    const luminance = color => {
+      context.clearRect(0, 0, 1, 1); context.fillStyle = color; context.fillRect(0, 0, 1, 1);
+      const linear = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map(value => { value /= 255; return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4; });
+      return linear[0] * .2126 + linear[1] * .7152 + linear[2] * .0722;
+    };
+    const results = []; source.parentElement.append(probe);
+    try {
+      for (const day of ['A', 'B', 'C']) for (const multiple of [false, true]) for (const selected of [false, true]) {
+        phone.dataset.day = day; probe.classList.toggle('multiple', multiple); probe.classList.toggle('chosen', selected); probe.setAttribute('aria-pressed', String(selected));
+        const style = getComputedStyle(probe), text = luminance(style.color), background = luminance(style.backgroundColor);
+        results.push({ day, multiple, selected, ratio: (Math.max(text, background) + .05) / (Math.min(text, background) + .05) });
+      }
+    } finally { probe.remove(); phone.dataset.day = originalDay; }
+    return results;
+  });
+  for (const result of calendarContrast) assert.ok(result.ratio >= 4.5, `Calendar date contrast: ${JSON.stringify(result)}`);
   await second.locator('.heat-day.trained').click(); await second.locator('.history-entry summary').click();
   assert.match(await second.locator('.history-entry').textContent(), /25 kg × 9/);
   await second.getByRole('button', { name: 'Edit this workout →', exact: true }).click();
