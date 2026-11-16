@@ -77,8 +77,18 @@ root.addEventListener('click', async event => {
       return task(async () => { if (!c.data.sessions[button.dataset.editSession]) { const result = await c.api(`/sessions/${button.dataset.editSession}`); c.data.sessions[result.session.id] = result.session; } c.resume(button.dataset.editSession); });
     }
     switch (button.dataset.action) {
-      case 'previous': return c.setIndex(c.index - 1);
-      case 'next': return c.setIndex(c.index + 1);
+      case 'previous':
+      case 'next': {
+        c.setIndex(c.index + (button.dataset.action === 'next' ? 1 : -1));
+        const preferred = root.querySelector(`[data-action=${button.dataset.action}]`);
+        (preferred?.disabled ? root.querySelector('.peek-nav button:not(:disabled)') : preferred)?.focus({ preventScroll: true });
+        return;
+      }
+      case 'return-rest': {
+        const index = Number(button.dataset.restIndex);
+        if (Number.isInteger(index) && c.current.exercises[index] && resting(c.current.exercises[index])) { c.setIndex(index); root.querySelector('[data-action=complete]')?.focus({ preventScroll: true }); }
+        return;
+      }
       case 'complete': {
         activateAudio();
         if (resting(c.exercise)) return c.toggleRest();
@@ -179,6 +189,15 @@ try {
     }
     const e = c.exercise, panel = root.querySelector('.exercise-rest');
     if (panel) { panel.querySelector('.countdown').textContent = clock(e.timer.remaining); panel.querySelector('.rest-track>div').style.width = `${Math.min(100, e.timer.remaining / e.rest * 100)}%`; const button = root.querySelector('[data-action=complete]'); button.textContent = views.actionLabel(e); button.disabled = !resting(e) && nextSet(e) < 0; panel.querySelector('[data-rest-label]').textContent = e.timer.phase === 'running' ? 'Resting' : e.timer.phase === 'paused' ? 'Paused' : e.timer.phase === 'ready' ? 'Ready' : 'Rest after each set'; }
+    const restNavigation = root.querySelector('[data-rest-navigation]');
+    if (restNavigation) {
+      for (const button of restNavigation.querySelectorAll('[data-rest-index]')) {
+        const other = c.current.exercises[Number(button.dataset.restIndex)];
+        button.hidden = !other || !resting(other); button.disabled = button.hidden;
+        if (!button.hidden) { button.querySelector('[data-rest-countdown]').textContent = clock(other.timer.remaining); button.querySelector('[data-rest-phase]').textContent = other.timer.phase === 'paused' ? 'Paused' : 'Resting'; }
+      }
+      restNavigation.hidden = ![...restNavigation.querySelectorAll('button')].some(button => !button.hidden);
+    }
     if (ended) { c.persist(); if (!isTyping() && !ui.dialog) render(); }
   }, 200);
   if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => {});
