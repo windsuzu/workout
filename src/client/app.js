@@ -2,22 +2,23 @@ import { createIcons, Activity, Dumbbell, CalendarDays, ChartNoAxesCombined, Pen
 import { actualSet, clock, completedSets, nextSet, resting } from '../domain/model.js';
 import { Controller } from './controller.js';
 import * as views from './views.js';
+import { RestAlarm } from './alarm.js';
+import { AppInstall } from './install.js';
 
 const root = document.getElementById('workout-focus'), phone = root.querySelector('.phone');
 const c = new Controller();
 const ui = { dialog: null, error: '', busy: false, pendingRender: false, calendars: null };
-let audio, ticker, wakeLock, backdropPointer, backdropRelease;
-
-function activateAudio() {
-  const Audio = window.AudioContext || window.webkitAudioContext;
-  if (Audio) try { audio ||= new Audio(); void audio.resume().catch(() => {}); } catch {}
-}
-function alarm() {
-  if (!audio) return;
-  try { for (let i = 0; i < 3; i++) { const oscillator = audio.createOscillator(), gain = audio.createGain(), at = audio.currentTime + i * .24;
-    oscillator.connect(gain); gain.connect(audio.destination); oscillator.frequency.value = 740;
-    gain.gain.setValueAtTime(.1, at); gain.gain.exponentialRampToValueAtTime(.001, at + .15); oscillator.start(at); oscillator.stop(at + .17);
-  } } catch {}
+let ticker, wakeLock, backdropPointer, backdropRelease;
+const restAlarm = new RestAlarm();
+const install = new AppInstall(() => { ui.installed = install.installed; render(); });
+ui.installed = install.installed;
+function activateAudio() { void restAlarm.arm(); }
+async function alarm() {
+  const notice = c.notice;
+  if (!await restAlarm.ring() && c.notice === notice) {
+    c.notice = 'Rest finished. Sound could not play—open settings to test it.';
+    render();
+  }
 }
 function initializeIcons() { createIcons({ icons: { Activity, Dumbbell, CalendarDays, ChartNoAxesCombined, Pencil, CloudCheck, CloudUpload, WifiOff, Settings2 }, attrs: { width: 16, height: 16 } }); }
 function isTyping() { return root.contains(document.activeElement) && document.activeElement.matches('input,textarea,select'); }
@@ -102,6 +103,11 @@ root.addEventListener('click', async event => {
         ui.guestImport = c.authorized && !c.data.importedGuest && !guest?.importedUsers?.includes(c.user.id) ? Object.values(guest?.sessions || {}).filter(s => completedSets(s)).length : 0;
         return render();
       }
+      case 'test-sound': {
+        const ready = restAlarm.arm();
+        return task(async () => { await ready; ui.soundMessage = await restAlarm.ring() ? 'Test tone played. If you did not hear it, check your phone’s media volume.' : 'Audio was blocked. Tap Test timer sound again and check media volume.'; });
+      }
+      case 'install-app': return task(async () => { ui.installHelp = !await install.prompt(); ui.installed = install.installed; });
       case 'retry': return task(async () => { await c.reconnect(); });
       case 'reload': location.reload(); return;
       case 'refresh-history': return task(async () => { await c.refreshHistory(); });

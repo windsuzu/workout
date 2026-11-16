@@ -14,8 +14,10 @@ page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => {
   window.soundCount = 0;
   window.AudioContext = class {
-    currentTime = 0; destination = {};
-    resume() { return Promise.resolve(); }
+    state = 'running'; sampleRate = 44100; currentTime = 0; destination = {};
+    createBuffer() { return {}; }
+    createBufferSource() { return { connect() {}, start() {} }; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
     createOscillator() { return { frequency: { value: 0 }, connect() {}, start() { window.soundCount++; }, stop() {} }; }
     createGain() { return { connect() {}, gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } }; }
   };
@@ -92,6 +94,22 @@ try {
   assert.doesNotMatch(await phone.locator('.record-summary').textContent(), /Set 1/);
   await context.setOffline(false);
   await waitFor(async () => !(await phone.locator('.sync-status').textContent()).includes('Offline'), 'Reconnect did not update status.');
+  await settings();
+  const soundBeforeTest = await page.evaluate(() => window.soundCount);
+  await phone.getByRole('button', { name: 'Test timer sound', exact: true }).click();
+  await phone.getByText(/Test tone played/).waitFor(); assert.equal(await page.evaluate(() => window.soundCount), soundBeforeTest + 3);
+  await phone.getByRole('button', { name: 'Add to Home Screen', exact: true }).click();
+  await phone.getByText(/iPhone\/iPad: open in Safari/).waitFor();
+  await page.evaluate(() => {
+    window.installPromptCount = 0;
+    const event = new Event('beforeinstallprompt', { cancelable: true });
+    event.prompt = async () => { window.installPromptCount++; }; event.userChoice = Promise.resolve({ outcome: 'accepted' }); window.dispatchEvent(event);
+  });
+  await phone.getByRole('button', { name: 'Add to Home Screen', exact: true }).click();
+  await waitFor(() => page.evaluate(() => window.installPromptCount === 1), 'Install prompt was not invoked.');
+  await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+  await phone.getByText('FORM is installed. Open it from your home screen.', { exact: true }).waitFor();
+  await closeDialog();
   await context.route(`${origin}/api/auth/google`, async route => {
     const response = await route.fetch({ maxRedirects: 0 });
     const url = new URL(response.headers().location);
