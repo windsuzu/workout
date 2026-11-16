@@ -56,3 +56,9 @@ docs/                   Setup, architecture, and agreed design
 ```
 
 See [architecture and sync behavior](docs/architecture/implementation.md) for storage, conflicts, and calendar limitations.
+
+## Phone setup
+
+Open Account & sync → **Test timer sound** and check your phone's media volume. The alarm resumes suspended audio before playing and vibrates on supported devices. Keep the app visible with the screen unlocked for reliable alerts; a home-screen install does not guarantee alarms while the OS suspends the app.
+
+Choose **Add to Home Screen** in settings. Android Chrome can show its native installation prompt when eligible; otherwise use Chrome's menu. On iPhone/iPad, open the app in Safari and choose Share → Add to Home Screen → Add. FORM opens as a standalone home-screen web app.

@@ -11,8 +11,11 @@ export async function buildApp() {
   await writeFile('dist/workouts.json', JSON.stringify({ days: seed.days }));
   await copyFile('public/manifest.webmanifest', 'dist/manifest.webmanifest');
   await copyFile('public/icon.svg', 'dist/icon.svg');
+  await mkdir('dist/icons', { recursive: true });
+  const icons = ['icon-192.png', 'icon-512.png', 'maskable-512.png', 'apple-touch-icon.png'];
+  for (const icon of icons) await copyFile(`public/icons/${icon}`, `dist/icons/${icon}`);
   const hash = createHash('sha256');
-  for (const file of ['assets/app.js', 'assets/app.css', 'index.html', 'workouts.json', 'manifest.webmanifest', 'icon.svg']) hash.update(await readFile(`dist/${file}`));
+  for (const file of ['assets/app.js', 'assets/app.css', 'index.html', 'workouts.json', 'manifest.webmanifest', 'icon.svg', ...icons.map(icon => `icons/${icon}`)]) hash.update(await readFile(`dist/${file}`));
   hash.update(await readFile('public/sw.js'));
   const version = hash.digest('hex').slice(0, 12);
   await writeFile('dist/sw.js', (await readFile('public/sw.js', 'utf8')).replace('__BUILD_VERSION__', version));

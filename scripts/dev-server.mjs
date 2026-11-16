@@ -24,7 +24,7 @@ export function startServer({ api, directory = 'dist', port = 3000 } = {}) {
       const file = resolve(root, '.' + decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
       if (!file.startsWith(root + '/')) { outgoing.writeHead(403); outgoing.end(); return; }
       const data = await readFile(file);
-      const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' }[extname(file)] || 'application/octet-stream';
+      const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' }[extname(file)] || 'application/octet-stream';
       outgoing.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff' }); outgoing.end(incoming.method === 'HEAD' ? undefined : data);
     } catch (error) { outgoing.writeHead(error.code === 'ENOENT' ? 404 : 500); outgoing.end('Not available'); }
   });
