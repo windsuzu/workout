@@ -94,3 +94,33 @@ test('a delayed plan acknowledgement cannot replace a newer cloud plan', async t
   await c.pull(); release(); await flush;
   assert.equal(c.data.cloudPlan.version, 2); assert.equal(c.data.plan.days.A.exercises[0].rest, 150); assert.equal(c.data.plan.days.A.exercises[0].weight, 25);
 });
+
+test('stalled startup falls back to the saved workout even when the device reports online', async t => {
+  const { c, rows } = await client(t); c.online = false;
+  c.complete(0, { weight: 32, reps: 8 }); await c.persistChain;
+  const offline = new Controller({ storage: { persistent: true, get: async key => structuredClone(rows.get(key)), set: async (key, value) => rows.set(key, structuredClone(value)) }, fetcher: async (path, options) => {
+    if (path === '/api/me') return new Promise((_, reject) => {
+      // A real network request keeps Node alive; AbortSignal.timeout alone is unref'ed on Node 22.
+      const request = setTimeout(() => reject(new Error('Network still stalled')), 10000);
+      t.after(() => clearTimeout(request));
+      options.signal.addEventListener('abort', () => { clearTimeout(request); reject(options.signal.reason); }, { once: true });
+    });
+    return Response.json(seed);
+  } });
+  offline.scheduleSync = () => {};
+  const started = Date.now(); await offline.start(); assert.ok(Date.now() - started < 6500);
+  assert.equal(offline.online, false); assert.equal(offline.current.exercises[0].logs[0].weight, 32);
+  assert.match(offline.error, /Offline copy loaded/);
+});
+
+test('guest recovery clears connection errors while retaining unrelated save errors', async () => {
+  let connected = false; const rows = new Map();
+  const c = new Controller({ storage: { persistent: true, get: async key => rows.get(key), set: async (key, value) => rows.set(key, structuredClone(value)) }, fetcher: async path => {
+    if (path === '/api/me') { if (!connected) throw new Error('offline'); return Response.json({ user: null, configured: true }); }
+    return Response.json(seed);
+  } });
+  await c.start(); assert.match(c.error, /Offline copy loaded/);
+  connected = true; await c.reconnect(); assert.equal(c.error, ''); assert.equal(c.online, true);
+  c.error = 'Device could not save the latest changes.';
+  await c.reconnect(); assert.equal(c.error, 'Device could not save the latest changes.');
+});

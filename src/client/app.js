@@ -4,14 +4,20 @@ import { Controller } from './controller.js';
 import * as views from './views.js';
 import { RestAlarm } from './alarm.js';
 import { AppInstall } from './install.js';
+import { renderInstallDialog } from './install-view.js';
+import { PwaUpdates } from './pwa-updates.js';
 
 const root = document.getElementById('workout-focus'), phone = root.querySelector('.phone');
+const updateAnnouncement = document.createElement('span');
+updateAnnouncement.className = 'sr-only'; updateAnnouncement.setAttribute('role', 'status'); root.append(updateAnnouncement);
 const c = new Controller();
 const ui = { dialog: null, error: '', busy: false, pendingRender: false, calendars: null };
 let ticker, wakeLock, backdropPointer, backdropRelease;
 const restAlarm = new RestAlarm();
 const install = new AppInstall(() => { ui.installed = install.installed; render(); });
 ui.installed = install.installed;
+const updates = new PwaUpdates(() => render());
+void updates.start();
 function activateAudio() { void restAlarm.arm(); }
 async function alarm() {
   const notice = c.notice;
@@ -25,12 +31,15 @@ function isTyping() { return root.contains(document.activeElement) && document.a
 function render(force = false) {
   if (!c.data) return;
   if (!force && (isTyping() || (ui.dialog && root.querySelector('.dialog form')))) { ui.pendingRender = true; return; }
+  const restoreInstallFocus = ui.dialog === 'install' && root.querySelector('.dialog')?.contains(document.activeElement);
   ui.pendingRender = false;
   phone.dataset.day = c.day;
   const body = { workout: views.workout, calendar: views.calendar, insights: views.insights, review: views.review }[c.view] || views.workout;
-  const dialog = ui.dialog === 'exercise' ? views.exerciseDialog(c, ui) : ui.dialog === 'account' ? views.accountDialog(c, ui) : ui.dialog === 'import' ? views.importDialog(c, ui) : '';
-  phone.innerHTML = views.header(c) + `<div id="global-status">${views.status(c)}</div>` + body(c) + views.nav(c) + dialog;
+  const dialog = ui.dialog === 'exercise' ? views.exerciseDialog(c, ui) : ui.dialog === 'account' ? views.accountDialog(c, { ...ui, offlineReady: updates.offlineReady, offlineError: updates.error }) : ui.dialog === 'import' ? views.importDialog(c, ui) : ui.dialog === 'install' ? renderInstallDialog(install, { error: ui.installError || updates.error, message: ui.installMessage, working: ui.busy, offlineReady: updates.offlineReady, appUrl: location.origin + '/' }) : '';
+  const updateBanner = updates.available ? `<div class="update-banner"><span>${views.esc(ui.updating ? 'Saving your workout and updating…' : ui.updateError || 'A new version is ready.')}</span><button data-action="apply-update" ${ui.updating ? 'disabled' : ''}>Save & update</button></div>` : '';
+  phone.innerHTML = views.header(c, { installed: install.installed }) + `<div id="global-status">${views.status(c)}</div>` + updateBanner + body(c) + views.nav(c) + dialog;
   initializeIcons();
+  if (restoreInstallFocus) root.querySelector('.dialog h2')?.focus();
 }
 function updateStatus() {
   const status = root.querySelector('#global-status'); if (status) status.innerHTML = views.status(c);
@@ -39,8 +48,9 @@ function updateStatus() {
 }
 function showError(error) { c.notice = error.message || 'Could not complete this action.'; if (ui.dialog) ui.error = c.notice; render(true); }
 function closeDialog() {
-  const exercise = ui.dialog === 'exercise'; ui.dialogEpoch = (ui.dialogEpoch || 0) + 1; ui.dialog = null; ui.error = ''; render(true);
-  root.querySelector(exercise ? '[data-action=exercise-settings]' : '[aria-label="Account and settings"]')?.focus();
+  const trigger = ui.dialog === 'exercise' ? '[data-action=exercise-settings]' : ui.dialog === 'install' ? '.install-entry' : '[aria-label="Account and settings"]';
+  ui.dialogEpoch = (ui.dialogEpoch || 0) + 1; ui.dialog = null; ui.error = ''; render(true);
+  (root.querySelector(trigger) || root.querySelector('[aria-label="Account and settings"]'))?.focus();
 }
 async function task(action) {
   if (ui.busy) return;
@@ -57,7 +67,8 @@ root.addEventListener('keydown', event => {
   if (event.key === 'Escape' && ui.dialog) closeDialog();
   if (event.key === 'Tab' && ui.dialog) {
     const items = [...root.querySelectorAll('.dialog button:not(:disabled),.dialog input,.dialog select,.dialog textarea,.dialog a[href]:not(.disabled-link)')].filter(item => item.getClientRects().length);
-    if (items.length && event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+    if (items.length && !items.includes(document.activeElement)) { event.preventDefault(); (event.shiftKey ? items.at(-1) : items[0]).focus(); }
+    else if (items.length && event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
     else if (items.length && !event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
   }
 });
@@ -117,7 +128,28 @@ root.addEventListener('click', async event => {
         const ready = restAlarm.arm();
         return task(async () => { await ready; ui.soundMessage = await restAlarm.ring() ? 'Test tone played. If you did not hear it, check your phone’s media volume.' : 'Audio was blocked. Tap Test timer sound again and check media volume.'; });
       }
-      case 'install-app': return task(async () => { ui.installHelp = !await install.prompt(); ui.installed = install.installed; });
+      case 'install-app': ui.dialog = 'install'; ui.installError = ''; ui.installMessage = ''; render(true); root.querySelector('.dialog h2')?.focus(); return;
+      case 'install-confirm': return task(async () => {
+        const outcome = await install.prompt();
+        ui.installMessage = outcome === 'accepted' ? 'Follow the browser prompt to finish installation.' : outcome === 'dismissed' ? 'Installation was cancelled. You can use the browser steps below whenever you are ready.' : 'Use the browser steps below to add FORM to your home screen.';
+        ui.installError = outcome === 'failed' ? 'The browser could not open its install prompt. Try the steps below.' : '';
+      });
+      case 'copy-app-link': return task(async () => {
+        try { await navigator.clipboard.writeText(location.origin + '/'); ui.installMessage = 'App link copied. Paste it into Safari or Chrome.'; }
+        catch { ui.installError = 'Copy the address shown below and open it in Safari or Chrome.'; }
+      });
+      case 'apply-update': return task(async () => {
+        if (ui.dialog) throw new Error('Close the dialog before updating so unfinished edits are kept.');
+        if (!c.storage.persistent) throw new Error('Device storage is unavailable. Keep this tab open and sync your workout before updating.');
+        let reloading = false; ui.updating = true; ui.updateError = ''; render(true);
+        updateAnnouncement.textContent = 'Saving your workout and updating.'; phone.inert = true;
+        try {
+          c.persist(); await c.persistChain;
+          if (await updates.apply()) { c.persist(); await c.persistChain; reloading = true; location.reload(); }
+        } catch (error) { ui.updateError = error.message; updateAnnouncement.textContent = error.message; throw error; }
+        finally { if (!reloading) { ui.updating = false; phone.inert = false; } }
+      });
+      case 'retry-offline': return task(async () => { await updates.start(); });
       case 'retry': return task(async () => { await c.reconnect(); });
       case 'reload': location.reload(); return;
       case 'refresh-history': return task(async () => { await c.refreshHistory(); });
@@ -176,7 +208,7 @@ root.addEventListener('submit', event => {
 });
 
 window.addEventListener('online', () => void c.reconnect()); window.addEventListener('offline', () => { c.online = false; c.changed('status'); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && c.authorized) void c.reconnect(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { if (c.authorized) void c.reconnect(); if (navigator.onLine) void updates.check(); } });
 
 try {
   await c.start(); render();
@@ -200,5 +232,4 @@ try {
     }
     if (ended) { c.persist(); if (!isTyping() && !ui.dialog) render(); }
   }, 200);
-  if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js').catch(() => {});
 } catch (error) { phone.innerHTML = `<main class="app-body"><h1>FORM</h1><p>${views.esc(error.message)}</p><a href="/">Try again</a></main>`; }
