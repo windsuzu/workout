@@ -107,3 +107,15 @@ test('stalled startup falls back to the saved workout even when the device repor
   assert.equal(offline.online, false); assert.equal(offline.current.exercises[0].logs[0].weight, 32);
   assert.match(offline.error, /Offline copy loaded/);
 });
+
+test('guest recovery clears connection errors while retaining unrelated save errors', async () => {
+  let connected = false; const rows = new Map();
+  const c = new Controller({ storage: { persistent: true, get: async key => rows.get(key), set: async (key, value) => rows.set(key, structuredClone(value)) }, fetcher: async path => {
+    if (path === '/api/me') { if (!connected) throw new Error('offline'); return Response.json({ user: null, configured: true }); }
+    return Response.json(seed);
+  } });
+  await c.start(); assert.match(c.error, /Offline copy loaded/);
+  connected = true; await c.reconnect(); assert.equal(c.error, ''); assert.equal(c.online, true);
+  c.error = 'Device could not save the latest changes.';
+  await c.reconnect(); assert.equal(c.error, 'Device could not save the latest changes.');
+});
