@@ -99,11 +99,16 @@ test('stalled startup falls back to the saved workout even when the device repor
   const { c, rows } = await client(t); c.online = false;
   c.complete(0, { weight: 32, reps: 8 }); await c.persistChain;
   const offline = new Controller({ storage: { persistent: true, get: async key => structuredClone(rows.get(key)), set: async (key, value) => rows.set(key, structuredClone(value)) }, fetcher: async (path, options) => {
-    if (path === '/api/me') return new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true }));
+    if (path === '/api/me') return new Promise((_, reject) => {
+      // A real network request keeps Node alive; AbortSignal.timeout alone is unref'ed on Node 22.
+      const request = setTimeout(() => reject(new Error('Network still stalled')), 10000);
+      t.after(() => clearTimeout(request));
+      options.signal.addEventListener('abort', () => { clearTimeout(request); reject(options.signal.reason); }, { once: true });
+    });
     return Response.json(seed);
   } });
   offline.scheduleSync = () => {};
-  await offline.start();
+  const started = Date.now(); await offline.start(); assert.ok(Date.now() - started < 6500);
   assert.equal(offline.online, false); assert.equal(offline.current.exercises[0].logs[0].weight, 32);
   assert.match(offline.error, /Offline copy loaded/);
 });
