@@ -158,7 +158,7 @@ export class Controller extends EventTarget {
           delete this.data.outbox[id];
           if (response.session.status === 'completed') {
             this.historyEpoch = (this.historyEpoch || 0) + 1;
-            const row = { ...historyEvent({ ...sessionEvent(response.session), id: response.session.eventId || id, htmlLink: response.session.eventUrl }, response.session.calendarId || 'local'), sync: response.session.sync };
+            const row = { ...historyEvent({ ...sessionEvent(response.session), id: response.session.eventId || id, htmlLink: response.session.eventUrl }, response.session.calendarId || 'local', response.session), sync: response.session.sync };
             this.data.history = this.data.history.filter(event => event.sessionId !== id); this.data.history.push(row);
           }
         }
@@ -196,7 +196,7 @@ export class Controller extends EventTarget {
   history() {
     const rows = new Map(this.data.history.map(e => [e.sessionId || `${e.calendarId}:${e.id}`, e]));
     for (const session of Object.values(this.data.sessions)) if (session.status === 'completed') {
-      if (this.data.outbox[session.id] || !rows.has(session.id)) rows.set(session.id, { ...historyEvent({ ...sessionEvent(session), id: session.id, htmlLink: session.eventUrl }, 'local'), sync: this.data.outbox[session.id] ? 'pending' : session.sync || 'local' });
+      if (this.data.outbox[session.id] || !rows.has(session.id)) rows.set(session.id, { ...historyEvent({ ...sessionEvent(session), id: session.id, htmlLink: session.eventUrl }, 'local', session), sync: this.data.outbox[session.id] ? 'pending' : session.sync || 'local' });
     }
     return [...rows.values()].sort(newestFirst);
   }

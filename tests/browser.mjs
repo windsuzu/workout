@@ -143,7 +143,8 @@ try {
   await waitFor(() => Promise.resolve(f.events.get('u1/cal-u1')?.size === 1), 'Finished workout did not sync into the dedicated calendar.');
   const saved = [...f.events.get('u1/cal-u1').values()][0];
   assert.match(saved.description, /Set 2: 25 kg × 9 reps/); assert.match(saved.description, /bench 30°/);
-  assert.equal(saved.extendedProperties.private.formVersion, '1');
+  assert.equal(saved.extendedProperties.private.formVersion, '2');
+  assert.doesNotMatch(saved.description, /FORM_WORKOUT_V1|"exercises"|"logs"/);
   assert.equal(saved.colorId, '7');
   let releaseImport; const importGate = new Promise(resolve => { releaseImport = resolve; });
   await page.route(/\/api\/import\/preview\?/, async route => { await importGate; await route.continue(); });
