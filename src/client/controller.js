@@ -10,7 +10,7 @@ export class Controller extends EventTarget {
   changed(type = 'change') { this.dispatchEvent(new Event(type)); }
   async api(path, options = {}) {
     let response;
-    try { response = await this.fetcher(`/api${path}`, { credentials: 'same-origin', ...options, headers: { ...(this.user && path !== '/me' ? { 'X-Form-Account': this.user.id } : {}), ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }); }
+    try { response = await this.fetcher(`/api${path}`, { credentials: 'same-origin', signal: AbortSignal.timeout(30000), ...options, headers: { ...(this.user && path !== '/me' ? { 'X-Form-Account': this.user.id } : {}), ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }); }
     catch { throw new AppError('You are offline or the server is unavailable. Changes stay on this device.', 0, 'offline'); }
     let data; try { data = await response.json(); } catch { throw new AppError('The server returned an unexpected response. Please retry.', 503); }
     if (!response.ok) throw new AppError(data.error || 'Could not complete the request.', response.status, data.code, data.details);
@@ -20,8 +20,8 @@ export class Controller extends EventTarget {
     this.storage ||= await openStorage();
     const previous = await this.storage.get('last-account');
     let me;
-    try { me = await this.api('/me'); this.online = true; }
-    catch { this.online = navigator.onLine; me = { user: previous?.user || null, configured: false }; }
+    try { me = await this.api('/me', { signal: AbortSignal.timeout(4000) }); this.online = true; }
+    catch { this.online = false; this.error = 'Offline copy loaded. Reconnect to sync.'; me = { user: previous?.user || null, configured: false }; }
     this.user = me.user; this.authorized = !!me.user && !('configured' in me && me.configured === false); this.configured = !!me.configured; this.calendar = me.calendar || previous?.calendar || null;
     const key = this.user?.id || 'guest'; this.accountKey = `account:${key}`;
     if (this.storage.claim && !await this.storage.claim(this.accountKey)) throw new AppError('This account is already open in another tab. Close that tab, then reload here to load its latest saved workout.', 409, 'tab_locked');

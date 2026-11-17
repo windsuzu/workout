@@ -8,6 +8,8 @@ import { renderInstallDialog } from './install-view.js';
 import { PwaUpdates } from './pwa-updates.js';
 
 const root = document.getElementById('workout-focus'), phone = root.querySelector('.phone');
+const updateAnnouncement = document.createElement('span');
+updateAnnouncement.className = 'sr-only'; updateAnnouncement.setAttribute('role', 'status'); root.append(updateAnnouncement);
 const c = new Controller();
 const ui = { dialog: null, error: '', busy: false, pendingRender: false, calendars: null };
 let ticker, wakeLock, backdropPointer, backdropRelease;
@@ -34,7 +36,7 @@ function render(force = false) {
   phone.dataset.day = c.day;
   const body = { workout: views.workout, calendar: views.calendar, insights: views.insights, review: views.review }[c.view] || views.workout;
   const dialog = ui.dialog === 'exercise' ? views.exerciseDialog(c, ui) : ui.dialog === 'account' ? views.accountDialog(c, { ...ui, offlineReady: updates.offlineReady, offlineError: updates.error }) : ui.dialog === 'import' ? views.importDialog(c, ui) : ui.dialog === 'install' ? renderInstallDialog(install, { error: ui.installError || updates.error, message: ui.installMessage, working: ui.busy, offlineReady: updates.offlineReady, appUrl: location.origin + '/' }) : '';
-  const updateBanner = updates.available ? '<div class="update-banner" role="status"><span>A new version is ready.</span><button data-action="apply-update">Save & update</button></div>' : '';
+  const updateBanner = updates.available ? `<div class="update-banner"><span>${views.esc(ui.updating ? 'Saving your workout and updating…' : ui.updateError || 'A new version is ready.')}</span><button data-action="apply-update" ${ui.updating ? 'disabled' : ''}>Save & update</button></div>` : '';
   phone.innerHTML = views.header(c, { installed: install.installed }) + `<div id="global-status">${views.status(c)}</div>` + updateBanner + body(c) + views.nav(c) + dialog;
   initializeIcons();
   if (restoreInstallFocus) root.querySelector('.dialog h2')?.focus();
@@ -65,7 +67,8 @@ root.addEventListener('keydown', event => {
   if (event.key === 'Escape' && ui.dialog) closeDialog();
   if (event.key === 'Tab' && ui.dialog) {
     const items = [...root.querySelectorAll('.dialog button:not(:disabled),.dialog input,.dialog select,.dialog textarea,.dialog a[href]:not(.disabled-link)')].filter(item => item.getClientRects().length);
-    if (items.length && event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+    if (items.length && !items.includes(document.activeElement)) { event.preventDefault(); (event.shiftKey ? items.at(-1) : items[0]).focus(); }
+    else if (items.length && event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
     else if (items.length && !event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
   }
 });
@@ -138,8 +141,13 @@ root.addEventListener('click', async event => {
       case 'apply-update': return task(async () => {
         if (ui.dialog) throw new Error('Close the dialog before updating so unfinished edits are kept.');
         if (!c.storage.persistent) throw new Error('Device storage is unavailable. Keep this tab open and sync your workout before updating.');
-        c.persist(); await c.persistChain;
-        if (await updates.apply()) location.reload();
+        let reloading = false; ui.updating = true; ui.updateError = ''; render(true);
+        updateAnnouncement.textContent = 'Saving your workout and updating.'; phone.inert = true;
+        try {
+          c.persist(); await c.persistChain;
+          if (await updates.apply()) { c.persist(); await c.persistChain; reloading = true; location.reload(); }
+        } catch (error) { ui.updateError = error.message; updateAnnouncement.textContent = error.message; throw error; }
+        finally { if (!reloading) { ui.updating = false; phone.inert = false; } }
       });
       case 'retry-offline': return task(async () => { await updates.start(); });
       case 'retry': return task(async () => { await c.reconnect(); });

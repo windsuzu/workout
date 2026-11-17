@@ -8,6 +8,9 @@ import { startServer } from '../scripts/dev-server.mjs';
 const temporary = await mkdtemp('/tmp/form-pwa-'), legacy = temporary + '/legacy', current = temporary + '/current', broken = temporary + '/broken', live = temporary + '/live';
 await cp('dist', current, { recursive: true }); await cp('dist', legacy, { recursive: true });
 const html = await readFile(current + '/index.html', 'utf8');
+// Keep activation pending long enough to assert that user editing is blocked safely.
+const currentWorker = await readFile(current + '/sw.js', 'utf8');
+await writeFile(current + '/sw.js', currentWorker.replace('event.waitUntil(self.skipWaiting());', 'event.waitUntil(new Promise(resolve => setTimeout(resolve, 800)).then(() => self.skipWaiting()));'));
 const js = html.match(/src="(\/assets\/[^\"]+\.js)"/)[1], css = html.match(/href="(\/assets\/[^\"]+\.css)"/)[1];
 await writeFile(legacy + '/assets/app.js', 'window.legacyAssetLoaded = true;\n' + await readFile(current + js, 'utf8'));
 await cp(current + css, legacy + '/assets/app.css');
@@ -54,6 +57,8 @@ try {
   await page.evaluate(() => { window.beforeUpdate = true; });
   await page.getByLabel('Set 2 weight in kg', { exact: true }).fill('23');
   await page.locator('[data-action=apply-update]').click();
+  await until(() => page.locator('.phone').evaluate(el => el.inert), 'Update did not protect editable controls.');
+  assert.equal(await page.getByLabel('Set 2 weight in kg', { exact: true }).evaluate(el => { el.focus(); return document.activeElement === el; }), false);
   await until(() => page.evaluate(() => !window.beforeUpdate), 'Explicit update did not reload.');
   await page.locator('.exercise-card').waitFor();
   assert.equal(await page.locator('.set-row.logged').count(), 1);
@@ -65,6 +70,10 @@ try {
   await page.getByRole('button', { name: 'Install', exact: true }).click();
   await page.getByRole('heading', { name: 'Install FORM', exact: true }).waitFor();
   assert.equal(await page.locator('.dialog h2').evaluate(el => document.activeElement === el), true);
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.getByRole('button', { name: 'Copy app link', exact: true }).evaluate(el => document.activeElement === el), true);
+  await page.keyboard.press('Tab');
+  assert.equal(await page.getByRole('button', { name: 'Close', exact: true }).evaluate(el => document.activeElement === el), true);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   failNavigation = true; await page.reload(); await page.locator('.exercise-card').waitFor(); failNavigation = false;
   stallNavigation = true; await page.reload(); await page.locator('.exercise-card').waitFor(); stallNavigation = false;

@@ -94,3 +94,16 @@ test('a delayed plan acknowledgement cannot replace a newer cloud plan', async t
   await c.pull(); release(); await flush;
   assert.equal(c.data.cloudPlan.version, 2); assert.equal(c.data.plan.days.A.exercises[0].rest, 150); assert.equal(c.data.plan.days.A.exercises[0].weight, 25);
 });
+
+test('stalled startup falls back to the saved workout even when the device reports online', async t => {
+  const { c, rows } = await client(t); c.online = false;
+  c.complete(0, { weight: 32, reps: 8 }); await c.persistChain;
+  const offline = new Controller({ storage: { persistent: true, get: async key => structuredClone(rows.get(key)), set: async (key, value) => rows.set(key, structuredClone(value)) }, fetcher: async (path, options) => {
+    if (path === '/api/me') return new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true }));
+    return Response.json(seed);
+  } });
+  offline.scheduleSync = () => {};
+  await offline.start();
+  assert.equal(offline.online, false); assert.equal(offline.current.exercises[0].logs[0].weight, 32);
+  assert.match(offline.error, /Offline copy loaded/);
+});
