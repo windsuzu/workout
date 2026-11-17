@@ -206,6 +206,9 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .peek-name{font-size:12px;line-height:1.5;min-height:36px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 #workout-focus .peek-weight{font-size:22px;line-height:1.3;font-weight:550;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 #workout-focus .peek-weight span{font-size:12px;font-weight:400;color:var(--muted)}
+#workout-focus .keyboard-hint{display:none;margin:0;color:var(--muted);font-size:11px;line-height:1.6}
+#workout-focus kbd{font:inherit;border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+@media(hover:hover) and (pointer:fine){#workout-focus .keyboard-hint{display:block}}
 #workout-focus .rest-navigation{display:grid;gap:8px}
 #workout-focus .rest-navigation[hidden],#workout-focus .rest-return[hidden]{display:none}
 #workout-focus .rest-return{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:5px 12px;text-align:left;font-size:12px;color:var(--action);background:color-mix(in srgb,var(--action) 7%,var(--surface));overflow-wrap:anywhere}

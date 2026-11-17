@@ -19,11 +19,17 @@ test('calendar colors reflect logged days and preserve every day on mixed dates'
 test('Peek shows the upcoming set weight and safely labels exercise boundaries', () => {
   const current = newSession(seedPlan(seed), 'A');
   current.exercises[1].drafts[0].weight = 30;
+  current.exercises[1].angle = 0;
   current.exercises[1].name = '<img src=x onerror="alert(1)">';
   const html = peekNavigation({ current, index: 0 });
-  assert.match(html, /data-action="previous" disabled/); assert.match(html, /peek-weight">30 /);
+  assert.match(html, /data-action="previous"[^>]* disabled/); assert.match(html, /peek-weight">30 /);
+  assert.match(html, /Angle 0°/); assert.match(html, /aria-keyshortcuts="ArrowRight"/);
   assert.ok(!html.includes('<img')); assert.match(html, /&lt;img/);
-  assert.match(peekNavigation({ current, index: 5 }), /data-action="next" disabled/);
+  assert.match(peekNavigation({ current, index: 5 }), /data-action="next"[^>]* disabled/);
+  current.exercises[0].angle = 30;
+  assert.match(peekNavigation({ current, index: 1 }), /Previous exercise:[^\"]*Angle 30°/);
+  current.exercises[0].angle = null;
+  assert.match(peekNavigation({ current, index: 1 }), /Angle not set/);
 });
 
 test('return controls show other running or paused rests, excluding the current exercise', () => {
