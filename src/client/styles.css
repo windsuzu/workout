@@ -211,3 +211,23 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .rest-return{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:5px 12px;text-align:left;font-size:12px;color:var(--action);background:color-mix(in srgb,var(--action) 7%,var(--surface));overflow-wrap:anywhere}
 #workout-focus .rest-return>span:first-child{min-width:0}
 #workout-focus .rest-return-status{white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}
+
+#workout-focus .header-actions{display:flex;align-items:center;gap:6px}
+#workout-focus .install-entry{min-height:44px;padding:8px 12px;color:var(--action);background:transparent}
+#workout-focus .update-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 18px;background:var(--surface);border-bottom:1px solid var(--line);font-size:12px}
+#workout-focus .install-steps{padding-left:22px;margin:0;display:grid;gap:12px;font-size:14px;line-height:1.6}
+#workout-focus .install-address{display:block;overflow-wrap:anywhere;white-space:normal;font-size:12px;color:var(--muted)}
+@media(max-width:460px){
+  #workout-focus .stage{padding:0}
+  #workout-focus .phone{width:100%;min-height:100svh;border-radius:0}
+  #workout-focus .app-header{padding-top:calc(18px + env(safe-area-inset-top,0px));padding-left:calc(18px + env(safe-area-inset-left,0px));padding-right:calc(18px + env(safe-area-inset-right,0px))}
+  #workout-focus .app-body{padding-left:calc(16px + env(safe-area-inset-left,0px));padding-right:calc(16px + env(safe-area-inset-right,0px))}
+  #workout-focus .app-nav{padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  #workout-focus .modal-backdrop{padding:calc(12px + env(safe-area-inset-top,0px)) calc(12px + env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px))}
+  #workout-focus .dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+}
+@media(display-mode:standalone){
+  body{overscroll-behavior-y:contain}
+  #workout-focus .stage{padding:0}
+  #workout-focus .phone{min-height:100svh;border-radius:0}
+}

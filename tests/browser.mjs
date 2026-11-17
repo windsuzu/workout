@@ -118,16 +118,16 @@ try {
   await phone.getByRole('button', { name: 'Test timer sound', exact: true }).click();
   await phone.getByText(/Test tone played/).waitFor(); assert.equal(await page.evaluate(() => window.soundCount), soundBeforeTest + 3);
   await phone.getByRole('button', { name: 'Add to Home Screen', exact: true }).click();
-  await phone.getByText(/iPhone\/iPad: open in Safari/).waitFor();
+  await phone.getByRole('button', { name: 'Copy app link', exact: true }).waitFor();
   await page.evaluate(() => {
     window.installPromptCount = 0;
     const event = new Event('beforeinstallprompt', { cancelable: true });
     event.prompt = async () => { window.installPromptCount++; }; event.userChoice = Promise.resolve({ outcome: 'accepted' }); window.dispatchEvent(event);
   });
-  await phone.getByRole('button', { name: 'Add to Home Screen', exact: true }).click();
+  await phone.getByRole('button', { name: 'Install FORM', exact: true }).click();
   await waitFor(() => page.evaluate(() => window.installPromptCount === 1), 'Install prompt was not invoked.');
   await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
-  await phone.getByText('FORM is installed. Open it from your home screen.', { exact: true }).waitFor();
+  await phone.getByText('FORM is installed. Open it from your home screen or app list.', { exact: true }).waitFor();
   await closeDialog();
   await context.route(`${origin}/api/auth/google`, async route => {
     const response = await route.fetch({ maxRedirects: 0 });
