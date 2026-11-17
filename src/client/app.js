@@ -63,14 +63,28 @@ c.addEventListener('change', () => render()); c.addEventListener('status', updat
 root.addEventListener('pointerdown', event => { activateAudio(); backdropPointer = event.target.matches('.modal-backdrop') ? event.target : null; backdropRelease = null; }); root.addEventListener('keydown', activateAudio);
 root.addEventListener('pointerup', event => { backdropRelease = event.target.matches('.modal-backdrop') ? event.target : null; });
 root.addEventListener('focusout', () => queueMicrotask(() => { if (ui.pendingRender && !isTyping()) render(); }));
-root.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && ui.dialog) closeDialog();
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && ui.dialog) { event.preventDefault(); closeDialog(); }
   if (event.key === 'Tab' && ui.dialog) {
     const items = [...root.querySelectorAll('.dialog button:not(:disabled),.dialog input,.dialog select,.dialog textarea,.dialog a[href]:not(.disabled-link)')].filter(item => item.getClientRects().length);
     if (items.length && !items.includes(document.activeElement)) { event.preventDefault(); (event.shiftKey ? items.at(-1) : items[0]).focus(); }
     else if (items.length && event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
     else if (items.length && !event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
   }
+});
+
+document.addEventListener('keydown', event => {
+  if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !c.data || c.view !== 'workout' || ui.dialog || ui.busy || ui.updating || phone.inert) return;
+  const target = event.target;
+  if (!(target instanceof HTMLElement) || (target !== document.body && target !== document.documentElement && !root.contains(target))) return;
+  if (target.isContentEditable || target.closest('input,textarea,select,[role=textbox],[role=combobox],[role=slider],[role=spinbutton],[role=tablist],[role=radiogroup]')) return;
+  const action = { Enter: 'complete', ArrowLeft: 'previous', ArrowRight: 'next' }[event.key];
+  if (!action) return;
+  // Let Enter activate links, disclosures and other buttons in the usual way.
+  const control = target.closest('button,a[href],summary,[role=button]');
+  if (event.key === 'Enter' && control && !control.matches('[data-action=complete]')) return;
+  event.preventDefault();
+  if (!event.repeat) root.querySelector(`button[data-action=${action}]:not(:disabled)`)?.click();
 });
 
 root.addEventListener('click', async event => {
