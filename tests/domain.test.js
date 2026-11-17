@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import seed from '../workouts.json' with { type: 'json' };
-import { applyPlanChanges, completeSet, finishSession, newestFirst, newSession, seedPlan, sessionEvent, undoSet, validateSession } from '../src/domain/model.js';
+import { applyPlanChanges, completeSet, finishSession, historyEvent, newestFirst, newSession, seedPlan, sessionEvent, undoSet, validateSession } from '../src/domain/model.js';
 
 test('weights, reps and bench angle are snapshots; future defaults cannot rewrite a completed set', () => {
   const plan = seedPlan(seed), session = newSession(plan, 'A', 'test-workout');
@@ -61,4 +61,28 @@ test('Google Calendar event colors consistently identify workout days', () => {
     const session = newSession(plan, day); completeSet(session, session.exercises[0].id, 0, { weight: 20, reps: 8 }); finishSession(session);
     assert.equal(sessionEvent(session).colorId, color);
   }
+});
+
+test('Calendar descriptions contain readable sets and notes while retained records supply offline history', () => {
+  const session = newSession(seedPlan(seed), 'A', 'readable-workout');
+  completeSet(session, 'a-0', 0, { weight: 20, reps: 12 });
+  completeSet(session, 'a-0', 1, { weight: 22.5, reps: 8 });
+  session.notes = 'Felt strong today.'; finishSession(session);
+  const event = sessionEvent(session);
+  assert.match(event.description, /Set 1: 20 kg × 12 reps/);
+  assert.match(event.description, /Set 2: 22.5 kg × 8 reps/);
+  assert.match(event.description, /bench 0°/);
+  assert.match(event.description, /Notes:\nFelt strong today\./);
+  assert.doesNotMatch(event.description, /FORM_WORKOUT|END_FORM_WORKOUT|"exercises"|"logs"/);
+  assert.deepEqual(event.extendedProperties.private, { formVersion: '2', formSessionId: session.id });
+  const history = historyEvent(event, 'local', session);
+  assert.equal(history.exercises.length, 1);
+  assert.deepEqual(history.exercises[0].logs.map(log => [log.weight, log.reps, log.angle]), [[20, 12, 0], [22.5, 8, 0]]);
+});
+
+test('legacy JSON descriptions still recover set slots when a retained record is unavailable', () => {
+  const detail = { day: 'B', exercises: [{ id: 'b-0', name: 'Shoulder press', unit: 'kg', logs: [null, { weight: 15, reps: 9, angle: 75 }] }] };
+  const history = historyEvent({ summary: '訓練 B - Strength', start: { date: '2026-10-20' }, end: { date: '2026-10-21' }, description: `Old workout\nFORM_WORKOUT_V1\n${JSON.stringify(detail)}\nEND_FORM_WORKOUT` }, 'primary');
+  assert.equal(history.day, 'B');
+  assert.deepEqual(history.exercises[0].logs, [null, { weight: 15, reps: 9, angle: 75, setNumber: 2 }]);
 });

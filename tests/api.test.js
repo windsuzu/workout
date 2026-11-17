@@ -45,8 +45,67 @@ test('finishing creates one calendar event, retries do not duplicate it, and cor
   const update = await (await save('correction', corrected)).json(); assert.equal(update.session.sync, 'synced');
   assert.equal(f.events.get('u1/cal-u1').size, 1);
   assert.match([...f.events.get('u1/cal-u1').values()][0].description, /25 kg × 10 reps/);
+  assert.doesNotMatch([...f.events.get('u1/cal-u1').values()][0].description, /FORM_WORKOUT_V1|"logs"/);
+  const history = await (await f.request('/api/history?from=2026-01-01&to=2027-01-01', { cookie })).json();
+  assert.equal(history.events[0].exercises[0].logs[0].weight, 25);
   assert.equal((await save('stale-other-device', session)).status, 409);
   const other = await f.login('u2'); assert.equal((await f.request('/api/sessions/completed-workout', { cookie: other })).status, 404);
+});
+
+test('large workouts retain every set in history without putting JSON in Calendar properties', async () => {
+  const f = fixture(), cookie = await f.login(); await f.request('/api/calendar/setup', { cookie, method: 'POST', data: {} });
+  const { plan } = await (await f.request('/api/state', { cookie })).json();
+  for (const exercise of plan.days.A.exercises) exercise.sets = 20;
+  const session = newSession(plan, 'A', 'large-workout');
+  for (const exercise of session.exercises) for (let i = 0; i < exercise.sets; i++) completeSet(session, exercise.id, i, { weight: i % 2 ? 22.5 : 20, reps: i % 2 ? 8 : 12 });
+  finishSession(session, Date.now() + 1000);
+  const response = await f.request('/api/sessions/large-workout', { cookie, method: 'PUT', data: { operationId: 'large-save', session } });
+  assert.equal(response.status, 200);
+  const event = [...f.events.get('u1/cal-u1').values()][0];
+  assert.ok(JSON.stringify(session.exercises).length > 1024);
+  assert.ok(Object.values(event.extendedProperties.private).every(value => value.length < 1024));
+  assert.doesNotMatch(event.description, /FORM_WORKOUT|"logs"|"exercises"/);
+  const history = await (await f.request('/api/history?from=2026-01-01&to=2027-01-01', { cookie })).json();
+  assert.equal(history.events[0].exercises.length, session.exercises.length);
+  for (const exercise of history.events[0].exercises) {
+    assert.equal(exercise.logs.length, 20);
+    assert.deepEqual(exercise.logs.map(log => [log.weight, log.reps]), Array.from({ length: 20 }, (_, i) => i % 2 ? [22.5, 8] : [20, 12]));
+  }
+});
+
+test('editable Calendar metadata cannot attach other accounts or mismatched retained workout records', async () => {
+  const f = fixture(), cookie = await f.login(); await f.request('/api/calendar/setup', { cookie, method: 'POST', data: {} });
+  const { plan } = await (await f.request('/api/state', { cookie })).json();
+  const save = async (ownerCookie, id, weight) => {
+    const session = newSession(plan, 'A', id); completeSet(session, 'a-0', 0, { weight, reps: 8 }); finishSession(session, Date.now() + 1000);
+    const response = await f.request(`/api/sessions/${id}`, { cookie: ownerCookie, method: 'PUT', data: { operationId: `save-${id}`, session } });
+    assert.equal(response.status, 200);
+  };
+  await save(cookie, 'owned-workout', 25);
+  const other = await f.login('u2'); await f.request('/api/calendar/setup', { cookie: other, method: 'POST', data: {} });
+  await save(other, 'other-workout', 77);
+  const ownEvents = f.events.get('u1/cal-u1'), event = [...ownEvents.values()][0];
+  // A Calendar write can succeed before its event ID acknowledgement is saved.
+  // The deterministic ID still proves the event binding in that retry window.
+  const retained = f.store.rows.get('sessions/u1/owned-workout').data;
+  delete retained.eventId; retained.sync = 'pending';
+  ownEvents.set('same-user-copy', { ...event, id: 'same-user-copy' });
+  ownEvents.set('other-user-reference', { ...event, id: 'other-user-reference', extendedProperties: { private: { formOwner: 'u1', formSessionId: 'other-workout' } } });
+  ownEvents.set('wrong-owner', { ...event, id: 'wrong-owner', extendedProperties: { private: { formOwner: 'u2', formSessionId: 'owned-workout' } } });
+  ownEvents.set('invalid-id', { ...event, id: 'invalid-id', extendedProperties: { private: { formOwner: 'u1', formSessionId: '../u2/other-workout' } } });
+  f.events.set('u1/primary', new Map([[event.id, event]]));
+  const reads = [], get = f.store.getWithMetadata.bind(f.store);
+  f.store.getWithMetadata = async (...args) => { reads.push(args[0]); return get(...args); };
+  const response = await f.request('/api/history?from=2026-01-01&to=2027-01-01', { cookie });
+  assert.equal(response.status, 200);
+  const rows = (await response.json()).events;
+  const owned = rows.find(row => row.calendarId === 'cal-u1' && row.id === event.id);
+  assert.equal(owned.exercises[0].logs[0].weight, 25);
+  for (const row of rows.filter(row => row !== owned)) {
+    assert.equal(row.exercises, null); assert.equal(row.sessionId, null);
+  }
+  assert.ok(reads.filter(key => key.startsWith('sessions/')).every(key => /^sessions\/u1\/[a-zA-Z0-9-]+$/.test(key)));
+  assert.equal(reads.includes('sessions/u2/other-workout'), false);
 });
 
 test('a failed Google write preserves the server record and can be retried safely', async () => {

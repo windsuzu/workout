@@ -72,7 +72,25 @@ export class GoogleCalendar {
     const rows = [];
     for (const id of sourceIds) {
       const events = await this.events(user, id, from, to, id === 'primary' ? '訓練' : undefined);
-      for (const e of events) if (e.extendedProperties?.private?.formSessionId || isLegacyWorkout(e)) rows.push(historyEvent(e, id));
+      const workouts = events.filter(e => e.extendedProperties?.private?.formSessionId || isLegacyWorkout(e));
+      // Bound storage fan-out while keeping a year of history off the serial path.
+      for (let offset = 0; offset < workouts.length; offset += 8) {
+        const batch = await Promise.all(workouts.slice(offset, offset + 8).map(async e => {
+          const metadata = e.extendedProperties?.private;
+          let session = null;
+          if (/^[a-zA-Z0-9-]{1,100}$/.test(metadata?.formSessionId || '') && metadata.formOwner === user.id) {
+            const saved = await this.repo.get(`sessions/${user.id}/${metadata.formSessionId}`);
+            // Calendar metadata is editable. It must identify this account's
+            // retained record AND its bound event before it can supply set data.
+            if (saved?.status === 'completed' && saved.id === metadata.formSessionId && saved.calendarId === id
+              && (saved.eventId || await hexDigest(`${user.id}:${saved.id}`)) === e.id) session = saved;
+          }
+          const row = historyEvent(e, id, session);
+          if (!session) row.sessionId = null;
+          return row;
+        }));
+        rows.push(...batch);
+      }
     }
     return rows.sort(newestFirst);
   }
