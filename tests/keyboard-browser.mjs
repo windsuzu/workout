@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict';
+
+export async function verifyKeyboard(browser, origin) {
+  const context = await browser.newContext({ viewport: { width: 1024, height: 1000 } });
+  try {
+    const page = await context.newPage();
+    await page.goto(origin);
+    const phone = page.locator('#workout-focus .phone');
+    const heading = phone.locator('.exercise-heading h2');
+    const action = phone.locator('[data-action=complete]');
+    const logged = phone.locator('.set-row.logged');
+    const blur = () => page.evaluate(() => document.activeElement.blur());
+    await heading.waitFor();
+    const first = await heading.textContent();
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await heading.textContent(), first);
+    await page.keyboard.press('Enter');
+    assert.equal(await logged.count(), 1);
+    assert.match(await action.textContent(), /Pause rest/);
+    await page.keyboard.down('Enter');
+    await page.keyboard.down('Enter'); // A held key cannot pause and immediately resume.
+    await page.keyboard.up('Enter');
+    assert.match(await action.textContent(), /Resume rest/);
+    assert.equal(await logged.count(), 1);
+    await page.keyboard.press('Enter');
+    assert.match(await action.textContent(), /Pause rest/);
+    const field = phone.locator('.set-input[data-set="1"][data-field=weight]');
+    await field.fill('23');
+    for (const key of ['Enter', 'ArrowLeft', 'ArrowRight']) await page.keyboard.press(key);
+    assert.equal(await heading.textContent(), first);
+    assert.equal(await field.inputValue(), '23');
+    assert.match(await action.textContent(), /Pause rest/);
+    assert.equal(await logged.count(), 1);
+    await phone.locator('[data-rest]').focus();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await heading.textContent(), first);
+    await blur();
+    for (const key of ['Control+ArrowRight', 'Shift+Enter', 'Alt+ArrowRight']) await page.keyboard.press(key);
+    assert.equal(await heading.textContent(), first);
+    assert.match(await action.textContent(), /Pause rest/);
+    await phone.locator('[data-action=exercise-settings]').first().click();
+    await phone.locator('.dialog h2').click();
+    for (const key of ['ArrowRight', 'Enter']) await page.keyboard.press(key);
+    assert.equal(await heading.textContent(), first);
+    assert.equal(await logged.count(), 1);
+    await page.keyboard.press('Escape');
+    await phone.locator('.dialog').waitFor({ state: 'hidden' });
+    await blur();
+    await page.keyboard.press('ArrowRight');
+    assert.notEqual(await heading.textContent(), first);
+    assert.match(await phone.locator('[data-action=previous]').textContent(), /Angle 0°/);
+    assert.match(await phone.locator('[data-action=return-rest]').textContent(), /Bench/);
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await heading.textContent(), first);
+    assert.match(await action.textContent(), /Pause rest/);
+    await phone.locator('[data-action=next]').focus();
+    await page.keyboard.press('Enter'); // Preserve native button activation.
+    assert.notEqual(await heading.textContent(), first);
+    assert.equal(await logged.count(), 0);
+    await phone.locator('[data-view=calendar]').click();
+    await blur();
+    for (const key of ['ArrowRight', 'ArrowLeft', 'Enter']) await page.keyboard.press(key);
+    assert.equal(await phone.locator('.heatmap').count(), 1);
+    await phone.locator('[data-view=workout]').click();
+    assert.equal(await logged.count(), 0);
+    await blur();
+    for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
+    const last = await heading.textContent();
+    assert.ok(await phone.locator('[data-action=next]').isDisabled());
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await heading.textContent(), last);
+    await page.keyboard.down('ArrowLeft');
+    const previous = await heading.textContent();
+    await page.keyboard.down('ArrowLeft');
+    await page.keyboard.up('ArrowLeft');
+    assert.equal(await heading.textContent(), previous);
+    console.log('Keyboard flow verified: complete/pause/resume, navigation, native controls, editing/dialog guards and boundaries.');
+  } finally { await context.close(); }
+}

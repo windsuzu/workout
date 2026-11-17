@@ -161,18 +161,18 @@ export function sessionEvent(session, timeZone = 'Asia/Taipei') {
     lines.push('');
   }
   if (session.notes) lines.push('Notes:', session.notes, '');
-  const summary = { id: session.id, day: session.day, exercises: session.exercises.filter(e => e.logs.some(Boolean)).map(e => ({ id: e.id, name: e.name, unit: e.unit, angle: e.angle, logs: e.logs })) };
-  lines.push('FORM_WORKOUT_V1', JSON.stringify(summary), 'END_FORM_WORKOUT');
   return { summary: `訓練 ${session.day} - ${session.focus}`, description: lines.join('\n'),
     colorId: { A: '7', B: '3', C: '5' }[session.day],
     start: { dateTime: session.startedAt, timeZone }, end: { dateTime: session.endedAt, timeZone },
     transparency: 'transparent', visibility: 'private', reminders: { useDefault: false },
-    extendedProperties: { private: { formVersion: '1', formSessionId: session.id } } };
+    extendedProperties: { private: { formVersion: '2', formSessionId: session.id } } };
 }
 
-export function historyEvent(event, calendarId) {
-  let detail = null;
-  try { const match = (event.description || '').match(/FORM_WORKOUT_V1\s*([\s\S]*?)\s*END_FORM_WORKOUT/); if (match) detail = JSON.parse(match[1]); } catch {}
+export function historyEvent(event, calendarId, savedSession = null) {
+  // A trusted local/server record supplies current structured data. Retain the
+  // old description parser for imported events and earlier app versions.
+  let detail = savedSession ? { day: savedSession.day, exercises: savedSession.exercises.filter(e => e.logs.some(Boolean)) } : null;
+  if (!detail) try { const match = (event.description || '').match(/FORM_WORKOUT_V1\s*([\s\S]*?)\s*END_FORM_WORKOUT/); if (match) detail = JSON.parse(match[1]); } catch {}
   const day = (DAY_KEYS.includes(detail?.day) ? detail.day : null) || (event.summary || '').match(/訓練 ([ABC])/)?.[1] || null;
   const allDay = !!event.start?.date;
   return { id: event.id, calendarId, title: event.summary || 'Workout', day,
