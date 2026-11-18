@@ -32,6 +32,7 @@ function render(force = false) {
   if (!c.data) return;
   if (!force && (isTyping() || (ui.dialog && root.querySelector('.dialog form')))) { ui.pendingRender = true; return; }
   const restoreInstallFocus = ui.dialog === 'install' && root.querySelector('.dialog')?.contains(document.activeElement);
+  const openDetails = ['progress-detail', 'remembered-targets'].filter(name => root.querySelector(`details.${name}`)?.open);
   ui.pendingRender = false;
   phone.dataset.day = c.day;
   const body = { workout: views.workout, calendar: views.calendar, insights: views.insights, review: views.review }[c.view] || views.workout;
@@ -39,6 +40,7 @@ function render(force = false) {
   const updateBanner = updates.available ? `<div class="update-banner"><span>${views.esc(ui.updating ? 'Saving your workout and updating…' : ui.updateError || 'A new version is ready.')}</span><button data-action="apply-update" ${ui.updating ? 'disabled' : ''}>Save & update</button></div>` : '';
   phone.innerHTML = views.header(c, { installed: install.installed }) + `<div id="global-status">${views.status(c)}</div>` + updateBanner + body(c) + views.nav(c) + dialog;
   initializeIcons();
+  for (const name of openDetails) { const detail = root.querySelector(`details.${name}`); if (detail) detail.open = true; }
   if (restoreInstallFocus) root.querySelector('.dialog h2')?.focus();
 }
 function updateStatus() {
@@ -198,8 +200,10 @@ root.addEventListener('change', event => {
     if (input.matches('.set-input')) {
       if (!input.reportValidity()) return;
       c.editSet(Number(input.dataset.set), input.dataset.field, Number(input.value));
-      const last = root.querySelector('.last-session'), open = last?.querySelector('details')?.open;
-      if (last) { last.outerHTML = views.comparison(c); if (open) root.querySelector('.progress-detail').open = true; }
+      for (const row of root.querySelectorAll('[data-set-comparison]')) row.outerHTML = views.setComparison(c, Number(row.dataset.setComparison));
+      const last = root.querySelector('.last-session');
+      const openDetails = ['progress-detail', 'remembered-targets'].filter(name => last?.querySelector(`details.${name}`)?.open);
+      if (last) { last.outerHTML = views.comparison(c); for (const name of openDetails) { const detail = root.querySelector(`details.${name}`); if (detail) detail.open = true; } }
       const feedback = root.querySelector('.feedback'); if (feedback) feedback.textContent = c.notice;
     } else if (input.matches('[data-rest]')) c.updateExercise({ rest: Number(input.value) }, c.current.status === 'completed' ? 'future' : 'both');
     else if (input.matches('[data-workout-notes]')) { c.current.notes = input.value; c.queueSession(); }

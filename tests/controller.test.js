@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import seed from '../workouts.json' with { type: 'json' };
 import { Controller } from '../src/client/controller.js';
 import { fixture } from './helpers.js';
+import { applyPlanChanges, setTarget } from '../src/domain/model.js';
 
 Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
 
@@ -21,6 +22,93 @@ async function client(t) {
   await c.start(); while (c.syncing) await delay(1);
   return { c, f, rows, setCookie: value => { cookie = value; }, afterRequest: value => { afterRequest = value; } };
 }
+
+async function anotherDevice(t, original, storage = null) {
+  const rows = new Map();
+  const c = new Controller({ fetcher: original.fetcher, storage: storage || { persistent: true, get: async key => structuredClone(rows.get(key)), set: async (key, value) => { rows.set(key, structuredClone(value)); } } });
+  c.scheduleSync = () => {};
+  t.after(() => { clearTimeout(c.syncTimer); clearTimeout(c.retryTimer); });
+  await c.start(); while (c.syncing) await delay(1);
+  return c;
+}
+
+test('completed sets remember independent pairs across reload and another device without carrying unfinished edits', async t => {
+  const { c } = await client(t); c.online = false;
+  const before = setTarget(c.data.plan.days.A.exercises[0], 1);
+  c.editSet(1, 'weight', 44); c.editSet(1, 'reps', 6);
+  assert.equal(c.data.planOps.length, 0);
+  c.complete(0, { weight: 20, reps: 12 }); await c.persistChain;
+  const reloaded = await anotherDevice(t, c, c.storage);
+  assert.deepEqual(setTarget(reloaded.data.plan.days.A.exercises[0], 0), { weight: 20, reps: 12 });
+  assert.deepEqual(setTarget(reloaded.data.plan.days.A.exercises[0], 1), before);
+  reloaded.complete(1, { weight: 25, reps: 8 }); await reloaded.flush();
+  const remote = await anotherDevice(t, c);
+  remote.newWorkout();
+  assert.deepEqual(remote.exercise.drafts, [{ weight: 20, reps: 12 }, { weight: 25, reps: 8 }]);
+});
+
+test('undo and live corrections restore only their matching target after a fresh-device resume', async t => {
+  const { c } = await client(t), original = setTarget(c.data.plan.days.A.exercises[0], 0);
+  c.complete(0, { weight: 20, reps: 12 }); c.complete(1, { weight: 25, reps: 8 }); await c.flush();
+  const remote = await anotherDevice(t, c); remote.online = false;
+  remote.editSet(0, 'reps', 10);
+  assert.deepEqual(setTarget(remote.data.plan.days.A.exercises[0], 0), { weight: 20, reps: 10 });
+  remote.undo(0);
+  assert.deepEqual(setTarget(remote.data.plan.days.A.exercises[0], 0), original);
+  assert.deepEqual(setTarget(remote.data.plan.days.A.exercises[0], 1), { weight: 25, reps: 8 });
+  assert.equal(remote.exercise.logs[1].weight, 25);
+});
+
+test('undoing an older draft and editing saved history cannot overwrite newer remembered pairs', async t => {
+  const { c } = await client(t); c.online = false;
+  c.complete(0, { weight: 20, reps: 12 }); const older = c.current.id;
+  c.newWorkout(); c.complete(0, { weight: 30, reps: 6 });
+  c.resume(older); c.undo(0);
+  assert.deepEqual(setTarget(c.data.plan.days.A.exercises[0], 0), { weight: 30, reps: 6 });
+  c.complete(0, { weight: 22, reps: 10 }); c.finish();
+  c.editSet(0, 'weight', 99);
+  assert.deepEqual(setTarget(c.data.plan.days.A.exercises[0], 0), { weight: 22, reps: 10 });
+  assert.equal(c.current.exercises[0].logs[0].weight, 99);
+});
+
+test('same-slot conflicts can keep either device while different slots merge', async t => {
+  const { c } = await client(t), remote = await anotherDevice(t, c);
+  c.online = false; remote.online = false;
+  c.complete(0, { weight: 20, reps: 12 }); remote.complete(1, { weight: 25, reps: 8 });
+  c.online = true; await c.flush(); remote.online = true; await remote.flush();
+  assert.equal(remote.conflict, undefined);
+  assert.deepEqual(remote.data.plan.days.A.exercises[0].setTargets, [{ weight: 20, reps: 12 }, { weight: 25, reps: 8 }]);
+  const rival = await anotherDevice(t, c); rival.online = false; rival.newWorkout();
+  c.newWorkout(); c.complete(0, { weight: 30, reps: 5 }); await c.flush();
+  rival.complete(0, { weight: 35, reps: 4 }); rival.online = true; await rival.flush();
+  assert.equal(rival.conflict.type, 'plan');
+  rival.online = false; rival.resolveConflict('local'); rival.online = true; await rival.flush();
+  assert.deepEqual(setTarget(rival.data.cloudPlan.days.A.exercises[0], 0), { weight: 35, reps: 4 });
+  assert.deepEqual(setTarget(rival.data.cloudPlan.days.A.exercises[0], 1), { weight: 25, reps: 8 });
+});
+
+test('a remotely removed future slot preserves local work through either conflict choice', async t => {
+  for (const choice of ['local', 'cloud']) {
+    const { c } = await client(t); c.online = false; c.complete(1, { weight: 25, reps: 8 });
+    c.data.cloudPlan = applyPlanChanges(c.data.cloudPlan, [{ exerciseId: 'a-0', field: 'sets', value: 1 }]);
+    assert.throws(() => c.rebuildPlan(), /planned sets changed/);
+    assert.equal(c.exercise.logs[1].weight, 25);
+    c.resolveConflict(choice);
+    assert.equal(c.data.plan.days.A.exercises[0].sets, choice === 'local' ? 2 : 1);
+    if (choice === 'local') assert.deepEqual(setTarget(c.data.plan.days.A.exercises[0], 1), { weight: 25, reps: 8 });
+    assert.equal(c.exercise.logs[1].weight, 25);
+  }
+});
+
+test('importing local workouts keeps both set targets and their undo history', async t => {
+  const { c, rows } = await client(t); c.online = false;
+  c.complete(0, { weight: 20, reps: 12 }); c.complete(1, { weight: 25, reps: 8 });
+  const guest = structuredClone(c.data); rows.set('account:guest', guest);
+  c.data.plan = structuredClone(c.data.cloudPlan); c.data.planOps = []; c.data.outbox = {}; c.data.sessions = {}; c.data.active = {}; c.ensureActive();
+  await c.importLocalWorkouts();
+  assert.deepEqual(c.data.plan.days.A.exercises[0].setTargets, [{ weight: 20, reps: 12 }, { weight: 25, reps: 8 }]);
+  assert.deepEqual(c.data.sessions[Object.keys(guest.sessions)[0]].exercises[0].logs[0].previousTarget, { weight: 22.5, reps: 12 });
+});
 
 test('changing Google accounts cannot pull or upload the previous account cache', async t => {
   const { c, f, setCookie, rows } = await client(t);
