@@ -79,8 +79,9 @@ export function applyPlanChanges(plan, changes, { checkExpected = false } = {}) 
     }
     const value = validatePreference(change.field, change.value);
     if ((change.field === 'weight' || change.field === 'reps') && Object.hasOwn(change, 'expectedTargets')) {
-      if (!Array.isArray(change.expectedTargets) || change.expectedTargets.length !== e.sets) throw new AppError('Provide an expected target for each set.');
+      if (!Array.isArray(change.expectedTargets) || !change.expectedTargets.length || change.expectedTargets.length > 20) throw new AppError('Provide one to twenty expected set targets.');
       const expectedTargets = change.expectedTargets.map(target => actualSet(target?.weight, target?.reps));
+      if (!checkExpected && expectedTargets.length !== e.sets) throw new AppError('Provide an expected target for each set.');
       const currentTargets = Array.from({ length: e.sets }, (_, i) => setTarget(e, i));
       if (checkExpected && JSON.stringify(currentTargets) !== JSON.stringify(expectedTargets)) {
         throw new AppError('These settings changed on another device.', 409, 'plan_conflict', { plan });

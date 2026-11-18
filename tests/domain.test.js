@@ -63,6 +63,21 @@ test('guarded all-set edits detect concurrent slot changes and compose with proj
   assert.deepEqual(newSession(applyPlanChanges(changedSlot, [legacy], { checkExpected: true }), 'A').exercises[0].drafts, [{ weight: 30, reps: exercise.reps }, { weight: 30, reps: 8 }]);
 });
 
+test('a valid changed set count produces a bulk-plan conflict while malformed expectations remain invalid', () => {
+  const plan = seedPlan(seed), e = plan.days.A.exercises[0];
+  const expectedTargets = Array.from({ length: e.sets }, (_, i) => setTarget(e, i));
+  const change = { exerciseId: 'a-0', field: 'weight', value: 30, expected: e.weight, expectedTargets };
+  for (const sets of [1, 3]) {
+    const cloud = applyPlanChanges(plan, [{ exerciseId: e.id, field: 'sets', value: sets }]);
+    assert.throws(() => applyPlanChanges(cloud, [change], { checkExpected: true }), error => error.status === 409 && error.code === 'plan_conflict' && error.details.plan.days.A.exercises[0].sets === sets);
+    assert.throws(() => applyPlanChanges(cloud, [change]), error => error.status === 400);
+    assert.equal(cloud.days.A.exercises[0].weight, e.weight);
+  }
+  for (const invalid of [null, [], Array(21).fill(expectedTargets[0]), [{ weight: -1, reps: 12 }]]) {
+    assert.throws(() => applyPlanChanges(plan, [{ ...change, expectedTargets: invalid }], { checkExpected: true }), error => error.status === 400);
+  }
+});
+
 test('invalid set target indexes, values and dynamic property names are rejected without changing the plan', () => {
   const plan = seedPlan(seed), original = structuredClone(plan);
   const change = { exerciseId: 'a-0', field: 'setTarget', setIndex: 0, value: { weight: 20, reps: 12 } };

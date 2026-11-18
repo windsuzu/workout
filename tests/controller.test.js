@@ -87,6 +87,34 @@ test('same-slot conflicts can keep either device while different slots merge', a
   assert.deepEqual(setTarget(rival.data.cloudPlan.days.A.exercises[0], 1), { weight: 25, reps: 8 });
 });
 
+test('completing an unchanged cached pair still detects a newer target on another device', async t => {
+  const { c } = await client(t), stale = await anotherDevice(t, c);
+  c.complete(0, { weight: 30, reps: 10 }); await c.flush();
+  stale.online = false; stale.complete(0, { weight: 22.5, reps: 12 });
+  assert.equal(stale.data.planOps.length, 1);
+  stale.online = true; await stale.flush();
+  assert.equal(stale.conflict.type, 'plan');
+  assert.ok(stale.data.outbox[stale.current.id]);
+  stale.online = false; stale.resolveConflict('local'); stale.online = true; await stale.flush();
+  assert.deepEqual(setTarget(stale.data.cloudPlan.days.A.exercises[0], 0), { weight: 22.5, reps: 12 });
+});
+
+test('bulk edits show a resolvable conflict when another device changes the set count', async t => {
+  for (const sets of [1, 3]) for (const choice of ['local', 'cloud']) {
+    const { c, f } = await client(t); c.online = false;
+    c.updateExercise({ weight: 30, reps: 10 }, 'future');
+    const response = await f.request('/api/plan', { cookie: await f.login(), method: 'PATCH', data: { operationId: `count-${sets}-${choice}`, changes: [{ exerciseId: 'a-0', field: 'sets', value: sets, expected: 2 }] } });
+    assert.equal(response.status, 200);
+    c.online = true; await c.flush();
+    assert.equal(c.conflict.type, 'plan');
+    c.online = false; c.resolveConflict(choice); c.online = true; await c.flush();
+    assert.equal(c.conflict, null); assert.equal(c.data.planOps.length, 0);
+    const exercise = c.data.cloudPlan.days.A.exercises[0];
+    assert.equal(exercise.sets, sets);
+    assert.deepEqual(setTarget(exercise, 0), choice === 'local' ? { weight: 30, reps: 10 } : { weight: 22.5, reps: 12 });
+  }
+});
+
 test('a remotely removed future slot preserves local work through either conflict choice', async t => {
   for (const choice of ['local', 'cloud']) {
     const { c } = await client(t); c.online = false; c.complete(1, { weight: 25, reps: 8 });

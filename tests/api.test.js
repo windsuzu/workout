@@ -60,6 +60,25 @@ test('guarded bulk defaults reject concurrent slot edits and apply sequential pr
   assert.equal((await patch('invalid-bulk', [{ ...stale, expected: 30, expectedTargets: [] }])).status, 400);
 });
 
+test('changed remote set counts return a resolvable bulk conflict instead of a permanent validation failure', async () => {
+  for (const sets of [1, 3]) {
+    const f = fixture(), cookie = await f.login();
+    const { plan } = await (await f.request('/api/state', { cookie })).json(), e = plan.days.A.exercises[0];
+    const patch = (operationId, changes) => f.request('/api/plan', { cookie, method: 'PATCH', data: { operationId, changes } });
+    assert.equal((await patch('remote-sets', [{ exerciseId: e.id, field: 'sets', value: sets, expected: e.sets }])).status, 200);
+    const bulk = { exerciseId: e.id, field: 'weight', value: 30, expected: e.weight, expectedTargets: Array.from({ length: e.sets }, (_, i) => setTarget(e, i)) };
+    const response = await patch('offline-bulk', [bulk]);
+    assert.equal(response.status, 409);
+    const conflict = await response.json();
+    assert.equal(conflict.code, 'plan_conflict'); assert.equal(conflict.details.plan.days.A.exercises[0].sets, sets);
+    const current = (await (await f.request('/api/state', { cookie })).json()).plan.days.A.exercises[0];
+    assert.equal(current.sets, sets); assert.equal(current.weight, e.weight);
+    for (const [i, expectedTargets] of [[], Array(21).fill(bulk.expectedTargets[0]), [{ weight: -1, reps: 12 }]].entries()) {
+      assert.equal((await patch(`invalid-expectation-${i}`, [{ ...bulk, expectedTargets }])).status, 400);
+    }
+  }
+});
+
 test('Google login uses PKCE and secure cookies; forged state and cross-origin writes are rejected', async () => {
   const f = fixture(), begin = await f.request('/api/auth/google');
   const url = new URL(begin.headers.get('location'));

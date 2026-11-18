@@ -109,7 +109,7 @@ export class Controller extends EventTarget {
     if (index < 0 || index >= future.sets) return false;
     const previous = setTarget(future, index), target = actualSet(values.weight, values.reps);
     if (expected && (previous.weight !== expected.weight || previous.reps !== expected.reps)) return false;
-    if (previous.weight === target.weight && previous.reps === target.reps) return true;
+    // Even an unchanged local pair needs the server's stale-value check.
     const changes = [{ exerciseId: future.id, field: 'setTarget', setIndex: index, expected: previous, value: target }];
     this.data.plan = applyPlanChanges(this.data.plan, changes); this.data.planOps.push({ operationId: crypto.randomUUID(), changes });
     return true;
