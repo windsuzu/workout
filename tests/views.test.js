@@ -107,7 +107,8 @@ test('remembered pairs use the future plan slots, and the workout has no mislead
   const html = workout(c);
   assert.match(html, /22\.5 kg × 12[\s\S]*25 kg × 8[\s\S]*30 kg × 6/);
   assert.match(html, /Remembered for next time/);
-  assert.doesNotMatch(html, /weight-value|Plan: 2 sets ×/);
+  assert.doesNotMatch(html, /weight-value|Plan: 2 sets ×|keyboard-hint|complete \/ pause \/ resume/);
+  assert.match(html, /aria-keyshortcuts="Enter Space"/);
   const dialog = exerciseDialog(c, {});
   assert.match(dialog, /Weight for all sets/); assert.match(dialog, /Reps for all sets/);
 });

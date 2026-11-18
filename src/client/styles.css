@@ -8,6 +8,7 @@
 #workout-focus .brand svg{color:var(--action);width:22px;height:22px}
 #workout-focus .preview-tag{font-size:11px;color:var(--muted);letter-spacing:.7px}
 #workout-focus .app-body{display:grid;gap:18px;padding:20px}
+#workout-focus .app-body.workout-body{gap:10px;padding:12px calc(14px + env(safe-area-inset-right,0px)) 12px calc(14px + env(safe-area-inset-left,0px))}
 #workout-focus h1,#workout-focus h2,#workout-focus h3,#workout-focus p{margin:0}
 #workout-focus h1{font-size:28px;font-weight:650;letter-spacing:-1px;line-height:1.15}
 #workout-focus h2{font-size:25px;font-weight:650;letter-spacing:-.8px;line-height:1.2}
@@ -26,9 +27,9 @@
 #workout-focus .heading-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
 #workout-focus .routine-name{font-size:14px;font-weight:550;line-height:1.5;margin-top:5px}
 #workout-focus .heading-row>.muted{flex-shrink:0}
-#workout-focus .exercise-card{display:grid;gap:16px;padding:24px 18px 18px;border:1px solid var(--line);border-radius:22px;background:var(--surface)}
-#workout-focus .exercise-heading{display:grid;gap:7px;text-align:center}
-#workout-focus .exercise-heading h2{font-size:25px;min-block-size:2.4em}
+#workout-focus .exercise-card{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:22px;background:var(--surface)}
+#workout-focus .exercise-heading{display:grid;gap:3px;text-align:center}
+#workout-focus .exercise-heading h2{font-size:22px;min-block-size:2.4em}
 #workout-focus .exercise-note{min-block-size:1.6em}
 #workout-focus .set-log{display:grid;gap:6px}
 #workout-focus .set-row{display:grid;grid-template-columns:22px minmax(88px,1.2fr) minmax(64px,.9fr) 44px;gap:6px;align-items:center;min-height:44px}
@@ -56,8 +57,8 @@
 #workout-focus .set-summary .inline-link{display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
 #workout-focus .set-summary svg{width:12px;height:12px}
 #workout-focus .set-entry{min-width:0}
-#workout-focus .set-comparison{height:72px;padding:4px 0 8px 28px;display:grid;align-content:start;gap:2px;color:var(--muted);font-size:11px;line-height:1.4;overflow-wrap:anywhere}
-#workout-focus .exercise-rest{border-top:1px solid var(--line);padding-top:16px;display:grid;gap:12px}
+#workout-focus .set-comparison{height:var(--comparison-height,44px);padding:3px 0 3px 28px;display:grid;align-content:start;gap:2px;color:var(--muted);font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+#workout-focus .exercise-rest{border-top:1px solid var(--line);padding-top:8px;display:grid;gap:8px}
 #workout-focus .timer-line{display:flex;align-items:center;gap:10px;justify-content:space-between}
 #workout-focus .timer-value{display:grid;gap:5px}
 #workout-focus .countdown{font-size:33px;font-weight:650;letter-spacing:-1.3px;font-variant-numeric:tabular-nums;line-height:1}
@@ -127,7 +128,7 @@
 #workout-focus .weight-stepper button{font-size:22px}
 #workout-focus .scope{display:flex;align-items:center;gap:10px;font-size:14px;min-height:44px}
 #workout-focus input[type=checkbox]{accent-color:var(--action);width:20px;height:20px}
-@media(max-width:420px){#workout-focus .stage{padding:12px 0}#workout-focus .phone{border-radius:20px}#workout-focus .app-body{padding:16px;gap:16px}#workout-focus .app-header{padding:18px}#workout-focus .exercise-card{padding:20px 14px 16px}#workout-focus .exercise-heading h2{font-size:23px}#workout-focus .countdown{font-size:30px}#workout-focus .timer-line{gap:7px}#workout-focus .rest-button{min-width:57px;padding:10px 8px}#workout-focus select{padding:7px;max-width:90px}#workout-focus .month-heading h2{font-size:18px}}
+@media(max-width:420px){#workout-focus .stage{padding:12px 0}#workout-focus .phone{border-radius:20px}#workout-focus .app-body{padding:16px;gap:16px}#workout-focus .app-header{padding:18px}#workout-focus .exercise-card{padding:12px}#workout-focus .exercise-heading h2{font-size:21px}#workout-focus .countdown{font-size:30px}#workout-focus .timer-line{gap:7px}#workout-focus .rest-button{min-width:57px;padding:10px 8px}#workout-focus select{padding:7px;max-width:90px}#workout-focus .month-heading h2{font-size:18px}}
 :root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}
 body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .brand{text-decoration:none;color:var(--ink)}
@@ -135,7 +136,7 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .phone{min-height:0}
 #workout-focus .icon-button{min-width:44px;display:grid;place-items:center;background:transparent;border:0}
 #workout-focus .exercise-note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#workout-focus .set-log{height:var(--set-log-height,260px);overflow-y:auto;align-content:start}
+#workout-focus .set-log{height:calc(16px + var(--set-log-rows,2) * (50px + var(--comparison-height,44px)));overflow-y:auto;align-content:start}
 #workout-focus .set-row{grid-template-columns:22px minmax(76px,1.2fr) minmax(54px,.9fr) 44px}
 #workout-focus .inline-link{font-size:12px;min-height:30px;padding:3px 7px;border:0;background:transparent;text-decoration:underline;color:var(--muted)}
 #workout-focus .set-input{appearance:textfield}
@@ -194,15 +195,12 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .history-entry[data-workout-day=A],#workout-focus .history-entry[data-workout-day=B],#workout-focus .history-entry[data-workout-day=C]{border-left:3px solid var(--day-accent);padding:12px;background:color-mix(in srgb,var(--day-accent) 6%,var(--surface));border-radius:10px}
 
 #workout-focus .peek-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-#workout-focus .peek-nav button{display:grid;align-content:start;gap:5px;text-align:left;padding:13px;min-height:140px;min-width:0}
+#workout-focus .peek-nav button{display:grid;align-content:start;gap:2px;text-align:left;padding:9px 10px;min-height:124px;min-width:0}
 #workout-focus .peek-nav button[data-action=next]:not(:disabled){border-color:var(--action)}
 #workout-focus .peek-direction,#workout-focus .peek-detail{font-size:11px;color:var(--muted);line-height:1.5}
-#workout-focus .peek-name{font-size:12px;line-height:1.5;min-height:36px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-#workout-focus .peek-weight{font-size:22px;line-height:1.3;font-weight:550;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#workout-focus .peek-name{font-size:12px;line-height:1.35;min-height:32.4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+#workout-focus .peek-weight{font-size:20px;line-height:1.3;font-weight:550;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 #workout-focus .peek-weight span{font-size:12px;font-weight:400;color:var(--muted)}
-#workout-focus .keyboard-hint{display:none;margin:0;color:var(--muted);font-size:11px;line-height:1.6}
-#workout-focus kbd{font:inherit;border:1px solid var(--line);border-radius:4px;padding:1px 4px}
-@media(hover:hover) and (pointer:fine){#workout-focus .keyboard-hint{display:block}}
 #workout-focus .rest-navigation{display:grid;gap:8px}
 #workout-focus .rest-navigation[hidden],#workout-focus .rest-return[hidden]{display:none}
 #workout-focus .rest-return{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:5px 12px;text-align:left;font-size:12px;color:var(--action);background:color-mix(in srgb,var(--action) 7%,var(--surface));overflow-wrap:anywhere}
@@ -229,3 +227,5 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
   #workout-focus .stage{padding:0}
   #workout-focus .phone{min-height:100svh;border-radius:0}
 }
+
+@media(max-width:360px){#workout-focus .workout-body{--comparison-height:56px}}
