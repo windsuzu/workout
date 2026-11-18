@@ -80,11 +80,12 @@ document.addEventListener('keydown', event => {
   const target = event.target;
   if (!(target instanceof HTMLElement) || (target !== document.body && target !== document.documentElement && !root.contains(target))) return;
   if (target.isContentEditable || target.closest('input,textarea,select,[role=textbox],[role=combobox],[role=slider],[role=spinbutton],[role=tablist],[role=radiogroup]')) return;
-  const action = { Enter: 'complete', ArrowLeft: 'previous', ArrowRight: 'next' }[event.key];
+  const action = { Enter: 'complete', ' ': 'complete', ArrowLeft: 'previous', ArrowRight: 'next' }[event.key];
   if (!action) return;
-  // Let Enter activate links, disclosures and other buttons in the usual way.
+  // Navigation keeps focus after switching exercises; activation keys still
+  // belong to the current exercise's combined action in that context.
   const control = target.closest('button,a[href],summary,[role=button]');
-  if (event.key === 'Enter' && control && !control.matches('[data-action=complete]')) return;
+  if (action === 'complete' && control && !control.matches('[data-action=complete],[data-action=previous],[data-action=next]')) return;
   event.preventDefault();
   if (!event.repeat) root.querySelector(`button[data-action=${action}]:not(:disabled)`)?.click();
 });
