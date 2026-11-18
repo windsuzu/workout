@@ -28,7 +28,7 @@
 #workout-focus .heading-row>.muted{flex-shrink:0}
 #workout-focus .exercise-card{display:grid;gap:16px;padding:24px 18px 18px;border:1px solid var(--line);border-radius:22px;background:var(--surface)}
 #workout-focus .exercise-heading{display:grid;gap:7px;text-align:center}
-#workout-focus .exercise-heading h2{font-size:25px}
+#workout-focus .exercise-heading h2{font-size:25px;min-block-size:2.4em}
 #workout-focus .exercise-note{min-block-size:1.6em}
 #workout-focus .set-log{display:grid;gap:6px}
 #workout-focus .set-row{display:grid;grid-template-columns:22px minmax(88px,1.2fr) minmax(64px,.9fr) 44px;gap:6px;align-items:center;min-height:44px}
@@ -43,26 +43,20 @@
 #workout-focus .next-suggestion small{display:block;margin-top:3px;font-size:11px}
 #workout-focus .next-suggestion button{font-size:11px;padding:8px 12px;min-width:74px}
 #workout-focus .last-session{padding:14px 0 4px;border-bottom:1px solid var(--line);display:grid;gap:8px}
-#workout-focus .last-session .eyebrow{font-size:10px;letter-spacing:.7px}
-#workout-focus .last-session .heading-row{flex-wrap:wrap;gap:6px}
-#workout-focus .comparison-change{font-size:13px;min-height:21px;line-height:1.6}
-#workout-focus .progress-detail summary{display:flex;align-items:center;min-height:44px;font-size:12px;color:var(--muted);cursor:pointer}
-#workout-focus .mini-trend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end;padding:14px 0 8px}
-#workout-focus .mini-trend>div{display:grid;justify-items:center;gap:7px}
-#workout-focus .mini-trend strong{font-size:12px;font-weight:500}
-#workout-focus .mini-trend small{font-size:11px;color:var(--muted)}
-#workout-focus .mini-bar{display:block;width:100%;max-width:42px;background:var(--line);border-radius:4px 4px 0 0}
-#workout-focus .mini-bar.today{background:var(--action)}
-#workout-focus .mini-bar.empty{background:transparent}
+#workout-focus .progress-detail summary,#workout-focus .remembered-targets summary{display:flex;align-items:center;min-height:44px;font-size:12px;color:var(--muted);cursor:pointer}
+#workout-focus .set-progress-scroll{max-width:100%;overflow-x:auto}
+#workout-focus .set-progress-table{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;line-height:1.6}
+#workout-focus .set-progress-table caption{text-align:left;color:var(--muted);padding:8px 0}
+#workout-focus .set-progress-table th,#workout-focus .set-progress-table td{padding:9px 6px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line);min-width:80px}
+#workout-focus .set-progress-table th{font-weight:500;color:var(--muted)}
+#workout-focus .remembered-pairs{display:grid;gap:10px;padding:6px 0 12px;font-size:12px;font-variant-numeric:tabular-nums}
+#workout-focus .remembered-pairs .heading-row{flex-wrap:wrap}
 #workout-focus .connection-state{font-size:11px;color:var(--muted);line-height:1.5}
-#workout-focus .weight-value{border:0;background:transparent;font-size:53px;font-weight:650;letter-spacing:-2px;padding:10px 0;display:flex;align-items:baseline;justify-content:center;gap:9px;line-height:1.2}
-#workout-focus .weight-value span{color:var(--muted);font-size:17px;font-weight:500;letter-spacing:0;display:inline-flex;gap:6px;align-items:center}
-#workout-focus .weight-value svg{width:12px;height:12px}
-#workout-focus .set-summary{font-size:13px;text-align:center;line-height:1.6}
-#workout-focus .set-summary span{display:block;color:var(--muted);font-size:12px}
-#workout-focus .set-dots{display:flex;justify-content:center;gap:6px}
-#workout-focus .set-dot{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;font-size:11px;color:var(--muted)}
-#workout-focus .set-dot.complete{background:var(--action);border-color:var(--action);color:var(--on-action)}
+#workout-focus .set-summary{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;line-height:1.6;color:var(--muted)}
+#workout-focus .set-summary .inline-link{display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
+#workout-focus .set-summary svg{width:12px;height:12px}
+#workout-focus .set-entry{min-width:0}
+#workout-focus .set-comparison{height:72px;padding:4px 0 8px 28px;display:grid;align-content:start;gap:2px;color:var(--muted);font-size:11px;line-height:1.4;overflow-wrap:anywhere}
 #workout-focus .exercise-rest{border-top:1px solid var(--line);padding-top:16px;display:grid;gap:12px}
 #workout-focus .timer-line{display:flex;align-items:center;gap:10px;justify-content:space-between}
 #workout-focus .timer-value{display:grid;gap:5px}
@@ -141,7 +135,7 @@ body{margin:0;min-width:320px;background:light-dark(#e9edf4,#0b0e13)}
 #workout-focus .phone{min-height:0}
 #workout-focus .icon-button{min-width:44px;display:grid;place-items:center;background:transparent;border:0}
 #workout-focus .exercise-note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#workout-focus .set-log{height:var(--set-log-height,116px);overflow-y:auto;align-content:start}
+#workout-focus .set-log{height:var(--set-log-height,260px);overflow-y:auto;align-content:start}
 #workout-focus .set-row{grid-template-columns:22px minmax(76px,1.2fr) minmax(54px,.9fr) 44px}
 #workout-focus .inline-link{font-size:12px;min-height:30px;padding:3px 7px;border:0;background:transparent;text-decoration:underline;color:var(--muted)}
 #workout-focus .set-input{appearance:textfield}

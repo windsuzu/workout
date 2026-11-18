@@ -1,4 +1,4 @@
-import { AppError, applyPlanChanges, clone, completeSet, completedSets, findExercise, finishSession, historyEvent, localDate, newestFirst, newSession, seedPlan, sessionEvent, undoSet, validatePreference } from '../domain/model.js';
+import { AppError, actualSet, applyPlanChanges, clone, completeSet, completedSets, findExercise, finishSession, historyEvent, localDate, newestFirst, newSession, seedPlan, sessionEvent, setTarget, undoSet, validatePreference } from '../domain/model.js';
 import { openStorage } from './storage.js';
 
 export class Controller extends EventTarget {
@@ -83,17 +83,43 @@ export class Controller extends EventTarget {
   }
   resume(id) { const session = this.data.sessions[id]; if (!session) return; this.day = session.day; this.data.active[session.day] = id; this.view = 'workout'; this.persist(); this.changed(); }
   editSet(index, field, value) {
-    const e = this.exercise; validatePreference(field === 'weight' ? 'weight' : 'reps', value);
+    const e = this.exercise;
+    if (!['weight', 'reps'].includes(field) || !Number.isInteger(index) || !e.drafts[index]) throw new AppError('Set or field not found.');
+    validatePreference(field, value);
     this.current.customized = true;
     e.drafts[index][field] = value;
-    if (e.logs[index]) e.logs[index][field] = value;
+    if (e.logs[index]) {
+      const log = e.logs[index]; log[field] = value;
+      if (this.current.status === 'draft' && log.rememberedTarget && this.rememberSet(index, actualSet(log.weight, log.reps), log.rememberedTarget)) log.rememberedTarget = actualSet(log.weight, log.reps);
+    }
     this.notice = e.logs[index] ? `Set ${index + 1} corrected.` : `Set ${index + 1} ready.`;
     this.queueSession(); this.changed('status');
   }
   complete(index, values) {
-    completeSet(this.current, this.exercise.id, index, values); this.notice = `Set ${index + 1} recorded. Rest started.`; this.queueSession(); this.changed();
+    const future = findExercise(this.data.plan, this.exercise.id);
+    const previous = index >= 0 && index < future.sets ? setTarget(future, index) : null;
+    completeSet(this.current, this.exercise.id, index, values);
+    if (this.current.status === 'draft' && previous && this.rememberSet(index, values)) {
+      const log = this.exercise.logs[index]; log.previousTarget = previous; log.rememberedTarget = actualSet(values.weight, values.reps);
+    }
+    this.notice = `Set ${index + 1} recorded.${this.exercise.logs[index].rememberedTarget ? ' Weight and reps remembered for next time.' : ''} Rest started.`; this.queueSession(); this.changed();
   }
-  undo(index) { undoSet(this.current, this.exercise.id, index); this.notice = `Set ${index + 1} undone. Its values are kept for retrying.`; this.queueSession(); this.changed(); }
+  rememberSet(index, values, expected) {
+    const future = findExercise(this.data.plan, this.exercise.id);
+    if (index < 0 || index >= future.sets) return false;
+    const previous = setTarget(future, index), target = actualSet(values.weight, values.reps);
+    if (expected && (previous.weight !== expected.weight || previous.reps !== expected.reps)) return false;
+    // Even an unchanged local pair needs the server's stale-value check.
+    const changes = [{ exerciseId: future.id, field: 'setTarget', setIndex: index, expected: previous, value: target }];
+    this.data.plan = applyPlanChanges(this.data.plan, changes); this.data.planOps.push({ operationId: crypto.randomUUID(), changes });
+    return true;
+  }
+  undo(index) {
+    const log = this.exercise.logs[index];
+    undoSet(this.current, this.exercise.id, index);
+    if (this.current.status === 'draft' && log?.previousTarget && log.rememberedTarget) this.rememberSet(index, log.previousTarget, log.rememberedTarget);
+    this.notice = `Set ${index + 1} undone. Its values are kept for retrying.`; this.queueSession(); this.changed();
+  }
   toggleRest() {
     const e = this.exercise;
     if (e.timer.phase === 'running') { e.timer.remaining = Math.max(0, Math.ceil((e.timer.deadline - Date.now()) / 1000)); e.timer.phase = 'paused'; e.timer.deadline = null; }
@@ -106,11 +132,19 @@ export class Controller extends EventTarget {
     for (const [field, value] of Object.entries(values)) { if (!allowed.includes(field)) throw new AppError('Unknown setting.'); validatePreference(field, value); }
     if (scope !== 'future' && values.sets !== undefined && values.sets < e.logs.reduce((last, log, i) => log ? i + 1 : last, 0)) throw new AppError('Completed sets cannot be removed by changing the target. Undo them first, or change next time only.');
     if (scope !== 'today') {
-      const changes = Object.entries(values).filter(([field, value]) => JSON.stringify(findExercise(this.data.plan, e.id)[field]) !== JSON.stringify(value)).map(([field, value]) => ({ exerciseId: e.id, field, value, expected: clone(findExercise(this.data.plan, e.id)[field]) }));
+      const changes = []; let projected = this.data.plan;
+      for (const [field, value] of Object.entries(values)) {
+        const target = findExercise(projected, e.id);
+        if (JSON.stringify(target[field]) === JSON.stringify(value)) continue;
+        const change = { exerciseId: e.id, field, value, expected: clone(target[field]) };
+        if (['weight', 'reps'].includes(field)) change.expectedTargets = Array.from({ length: target.sets }, (_, index) => setTarget(target, index));
+        changes.push(change); projected = applyPlanChanges(projected, [change]);
+      }
       if (changes.length) { this.data.plan = applyPlanChanges(this.data.plan, changes); this.data.planOps.push({ operationId: crypto.randomUUID(), changes }); }
     }
     if (scope !== 'future') {
       Object.assign(e, values); this.current.customized = true;
+      if (e.setTargets) e.setTargets = e.setTargets.slice(0, e.sets);
       e.logs = Array.from({ length: e.sets }, (_, i) => e.logs[i] || null);
       e.drafts = Array.from({ length: e.sets }, (_, i) => e.logs[i] ? { weight: e.logs[i].weight, reps: e.logs[i].reps } : { weight: values.weight ?? e.drafts[i]?.weight ?? e.weight, reps: values.reps ?? e.drafts[i]?.reps ?? e.reps });
       if (!['running', 'paused'].includes(e.timer.phase)) e.timer = { phase: 'idle', remaining: e.rest, deadline: null };
@@ -134,7 +168,15 @@ export class Controller extends EventTarget {
     if (!completedSets(active) && !active.customized && !this.data.outbox[active.id]) this.data.sessions[active.id] = newSession(this.data.plan, active.day, active.id);
     this.persist(); this.changed();
   }
-  rebuildPlan() { this.data.plan = clone(this.data.cloudPlan); for (const operation of this.data.planOps) this.data.plan = applyPlanChanges(this.data.plan, operation.changes); }
+  rebuildPlan() {
+    let plan = clone(this.data.cloudPlan);
+    try { for (const operation of this.data.planOps) plan = applyPlanChanges(plan, operation.changes); }
+    catch {
+      this.conflict = { type: 'plan', plan: clone(this.data.cloudPlan) };
+      throw new AppError('The planned sets changed on another device. Review which defaults to keep; your recorded sets are preserved.', 409, 'plan_conflict', { plan: this.data.cloudPlan });
+    }
+    this.data.plan = plan;
+  }
   async flush() {
     if (!this.data || this.syncing || !this.online || !this.authorized || this.conflict || this.accountChanged) return;
     this.syncing = true; this.changed('status');
@@ -223,9 +265,17 @@ export class Controller extends EventTarget {
     const guest = await this.storage.get('account:guest');
     if (!guest || this.data.importedGuest || guest.importedUsers?.includes(this.user.id)) return;
     const changes = [];
+    let projected = clone(this.data.plan);
+    const addChange = change => { changes.push(change); projected = applyPlanChanges(projected, [change]); };
     for (const day of ['A', 'B', 'C']) for (const exercise of guest.plan.days[day].exercises) {
-      const target = findExercise(this.data.plan, exercise.id);
-      for (const field of ['weight', 'reps', 'sets', 'rest', 'angle', 'setup', 'media']) if (JSON.stringify(target[field]) !== JSON.stringify(exercise[field])) changes.push({ exerciseId: exercise.id, field, expected: clone(target[field]), value: clone(exercise[field]) });
+      for (const field of ['weight', 'reps', 'sets', 'rest', 'angle', 'setup', 'media']) {
+        const target = findExercise(projected, exercise.id);
+        if (JSON.stringify(target[field]) !== JSON.stringify(exercise[field])) addChange({ exerciseId: exercise.id, field, expected: clone(target[field]), value: clone(exercise[field]), ...(['weight', 'reps'].includes(field) ? { expectedTargets: Array.from({ length: target.sets }, (_, index) => setTarget(target, index)) } : {}) });
+      }
+      for (let index = 0; index < exercise.sets; index++) {
+        const expected = setTarget(findExercise(projected, exercise.id), index), value = setTarget(exercise, index);
+        if (expected.weight !== value.weight || expected.reps !== value.reps) addChange({ exerciseId: exercise.id, field: 'setTarget', setIndex: index, expected, value });
+      }
     }
     for (let i = 0; i < changes.length; i += 40) {
       const part = changes.slice(i, i + 40); this.data.plan = applyPlanChanges(this.data.plan, part); this.data.planOps.push({ operationId: crypto.randomUUID(), changes: part });
@@ -247,8 +297,23 @@ export class Controller extends EventTarget {
       this.data.cloudPlan = this.conflict.plan;
       if (choice === 'cloud') this.data.planOps = [];
       else {
-        const plan = clone(this.data.cloudPlan);
-        for (const op of this.data.planOps) { op.operationId = crypto.randomUUID(); for (const change of op.changes) { change.expected = clone(findExercise(plan, change.exerciseId)[change.field]); findExercise(plan, change.exerciseId)[change.field] = change.value; } }
+        let plan = clone(this.data.cloudPlan);
+        const operations = [];
+        for (const op of this.data.planOps) {
+          const changes = [];
+          for (const change of op.changes) {
+            const exercise = findExercise(plan, change.exerciseId);
+            if (change.field === 'setTarget' && change.setIndex >= exercise.sets) {
+              const restoreSets = { exerciseId: exercise.id, field: 'sets', expected: exercise.sets, value: change.setIndex + 1 };
+              changes.push(restoreSets); plan = applyPlanChanges(plan, [restoreSets]);
+            }
+            change.expected = change.field === 'setTarget' ? setTarget(findExercise(plan, change.exerciseId), change.setIndex) : clone(findExercise(plan, change.exerciseId)[change.field]);
+            if (['weight', 'reps'].includes(change.field)) { const target = findExercise(plan, change.exerciseId); change.expectedTargets = Array.from({ length: target.sets }, (_, index) => setTarget(target, index)); }
+            changes.push(change); plan = applyPlanChanges(plan, [change]);
+          }
+          for (let i = 0; i < changes.length; i += 40) operations.push({ operationId: crypto.randomUUID(), changes: changes.slice(i, i + 40) });
+        }
+        this.data.planOps = operations;
       }
       this.rebuildPlan();
     } else if (this.conflict?.type === 'session') {

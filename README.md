@@ -2,7 +2,7 @@
 
 A mobile workout list, set log, and rest timer. The existing A/B/C routines in `workouts.json` seed each account's plan.
 
-- Record actual weight and reps for each set. **Complete set & rest** records the set and starts its timer; the same button pauses or resumes rest.
+- Record actual weight and reps for each set. Pair ledger remembers each completed set’s pair independently for next time and compares matching sets from last time. **Complete set & rest** records the set and starts its timer; the same button pauses or resumes rest.
 - Edit weight, reps, set count, rest, bench angle, setup notes, and an optional exercise image/GIF. Apply changes today, next time, or both. Recorded sets keep their original values.
 - Resume unfinished workouts, correct completed sets, and undo an individual set.
 - Save inside the app and sync directly to a dedicated Google Calendar. Retries update the same event.
@@ -54,6 +54,8 @@ scripts/                Build and local development server
 tests/                  Domain, API, and browser checks
 docs/                   Setup, architecture, and agreed design
 ```
+
+See [per-set memory and comparisons](docs/per-set-memory.md) for completion, undo and conflict behavior.
 
 See [architecture and sync behavior](docs/architecture/implementation.md) for storage, conflicts, and calendar limitations.
 

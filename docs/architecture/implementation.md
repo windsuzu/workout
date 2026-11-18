@@ -2,7 +2,7 @@
 
 ## Data ownership
 
-`workouts.json` seeds the A/B/C plan. After Google sign-in, Netlify Blobs stores that account's defaults: weight, reps, set count, rest duration, bench angle, setup notes, and optional HTTPS image/GIF URL. Each recorded set snapshots its actual weight/reps, rest default, angle, and setup notes. Updating a default does not rewrite those snapshots.
+`workouts.json` seeds the A/B/C plan. After Google sign-in, Netlify Blobs stores that account's defaults: weight, reps, set count, rest duration, bench angle, setup notes, and optional HTTPS image/GIF URL. Each completed live set remembers its own weight/reps target for next time; legacy scalar defaults fill slots without remembered pairs. Each recorded set snapshots its actual weight/reps, rest default, angle, and setup notes. Per-set expected-value checks allow different slots to merge while guarding same-slot and all-set conflicts. Updating a default does not rewrite those snapshots.
 
 Each browser keeps an IndexedDB cache and pending-operation queue. Guest data and each signed-in account have separate keys. Guest workouts are transferred only through the explicit import action. Account data remains cached on that browser after sign-out to support later offline use of that account; sign-out removes server authentication and starts the app in the separate guest space. Use a trusted browser for personal workout data. Clearing browser site data removes unsynced local work.
 

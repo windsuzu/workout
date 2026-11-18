@@ -1,7 +1,83 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixture } from './helpers.js';
-import { completeSet, finishSession, newSession } from '../src/domain/model.js';
+import { completeSet, finishSession, newSession, setTarget } from '../src/domain/model.js';
+
+test('per-set preferences merge across devices, reject stale slot writes and remain account-scoped', async () => {
+  const f = fixture(), cookie = await f.login();
+  const { plan } = await (await f.request('/api/state', { cookie })).json();
+  const expected = setTarget(plan.days.A.exercises[0], 0);
+  const change = (operationId, setIndex, value, prior = expected) => f.request('/api/plan', { cookie, method: 'PATCH', data: { operationId, changes: [{ exerciseId: 'a-0', field: 'setTarget', setIndex, value, expected: prior }] } });
+  const values = [{ weight: 27.5, reps: 12 }, { weight: 30, reps: 8 }];
+  const responses = await Promise.all(values.map((value, i) => change(`slot-${i}`, i, value)));
+  assert.deepEqual(responses.map(response => response.status), [200, 200]);
+  const saved = await (await f.request('/api/state', { cookie })).json();
+  assert.deepEqual(newSession(saved.plan, 'A').exercises[0].drafts, values);
+  assert.equal((await change('stale-slot', 0, { weight: 35, reps: 8 })).status, 409);
+  assert.equal((await change('slot-0', 0, values[0])).status, 200);
+  for (const index of [-1, 20, '0', '__proto__']) assert.equal((await change(`bad-slot-${String(index).replace(/[^a-z0-9-]/gi, '')}`, index, values[0])).status, 400);
+  assert.equal((await change('removed-slot', 2, values[0])).status, 409);
+  const other = await f.login('u2');
+  const otherPlan = (await (await f.request('/api/state', { cookie: other })).json()).plan;
+  assert.deepEqual(setTarget(otherPlan.days.A.exercises[0], 0), expected);
+  assert.equal(otherPlan.days.A.exercises[0].setTargets, undefined);
+});
+
+test('draft target memory survives server normalization and a fresh device state read', async () => {
+  const f = fixture(), cookie = await f.login();
+  const { plan } = await (await f.request('/api/state', { cookie })).json();
+  const session = newSession(plan, 'A', 'draft-memory');
+  const previousTarget = setTarget(plan.days.A.exercises[0], 0), rememberedTarget = { weight: 30, reps: 8 };
+  completeSet(session, 'a-0', 0, rememberedTarget);
+  Object.assign(session.exercises[0].logs[0], { previousTarget, rememberedTarget });
+  const response = await f.request('/api/sessions/draft-memory', { cookie, method: 'PUT', data: { operationId: 'draft-memory-save', session } });
+  assert.equal(response.status, 200);
+  const cloud = (await (await f.request('/api/state', { cookie })).json()).drafts[0];
+  assert.deepEqual(cloud.exercises[0].logs[0].previousTarget, previousTarget);
+  assert.deepEqual(cloud.exercises[0].logs[0].rememberedTarget, rememberedTarget);
+  assert.deepEqual(cloud.exercises[0].drafts[0], rememberedTarget);
+});
+
+test('guarded bulk defaults reject concurrent slot edits and apply sequential projected values atomically', async () => {
+  const f = fixture(), cookie = await f.login();
+  const { plan } = await (await f.request('/api/state', { cookie })).json(), exercise = plan.days.A.exercises[0];
+  const initialTargets = Array.from({ length: exercise.sets }, (_, i) => setTarget(exercise, i));
+  const patch = (operationId, changes) => f.request('/api/plan', { cookie, method: 'PATCH', data: { operationId, changes } });
+  assert.equal((await patch('slot-first', [{ exerciseId: 'a-0', field: 'setTarget', setIndex: 1, expected: initialTargets[1], value: { weight: 27.5, reps: 8 } }])).status, 200);
+  const stale = { exerciseId: 'a-0', field: 'weight', expected: exercise.weight, value: 30, expectedTargets: initialTargets };
+  assert.equal((await patch('stale-bulk', [stale])).status, 409);
+  const current = (await (await f.request('/api/state', { cookie })).json()).plan.days.A.exercises[0];
+  assert.deepEqual(setTarget(current, 1), { weight: 27.5, reps: 8 });
+  const expectedTargets = Array.from({ length: current.sets }, (_, i) => setTarget(current, i));
+  const bulk = [
+    { ...stale, expectedTargets },
+    { exerciseId: 'a-0', field: 'reps', expected: current.reps, value: 10, expectedTargets: expectedTargets.map(target => ({ ...target, weight: 30 })) },
+  ];
+  assert.equal((await patch('fresh-bulk', bulk)).status, 200);
+  const saved = (await (await f.request('/api/state', { cookie })).json()).plan;
+  assert.deepEqual(newSession(saved, 'A').exercises[0].drafts, [{ weight: 30, reps: 10 }, { weight: 30, reps: 10 }]);
+  assert.equal((await patch('fresh-bulk', bulk)).status, 200);
+  assert.equal((await patch('invalid-bulk', [{ ...stale, expected: 30, expectedTargets: [] }])).status, 400);
+});
+
+test('changed remote set counts return a resolvable bulk conflict instead of a permanent validation failure', async () => {
+  for (const sets of [1, 3]) {
+    const f = fixture(), cookie = await f.login();
+    const { plan } = await (await f.request('/api/state', { cookie })).json(), e = plan.days.A.exercises[0];
+    const patch = (operationId, changes) => f.request('/api/plan', { cookie, method: 'PATCH', data: { operationId, changes } });
+    assert.equal((await patch('remote-sets', [{ exerciseId: e.id, field: 'sets', value: sets, expected: e.sets }])).status, 200);
+    const bulk = { exerciseId: e.id, field: 'weight', value: 30, expected: e.weight, expectedTargets: Array.from({ length: e.sets }, (_, i) => setTarget(e, i)) };
+    const response = await patch('offline-bulk', [bulk]);
+    assert.equal(response.status, 409);
+    const conflict = await response.json();
+    assert.equal(conflict.code, 'plan_conflict'); assert.equal(conflict.details.plan.days.A.exercises[0].sets, sets);
+    const current = (await (await f.request('/api/state', { cookie })).json()).plan.days.A.exercises[0];
+    assert.equal(current.sets, sets); assert.equal(current.weight, e.weight);
+    for (const [i, expectedTargets] of [[], Array(21).fill(bulk.expectedTargets[0]), [{ weight: -1, reps: 12 }]].entries()) {
+      assert.equal((await patch(`invalid-expectation-${i}`, [{ ...bulk, expectedTargets }])).status, 400);
+    }
+  }
+});
 
 test('Google login uses PKCE and secure cookies; forged state and cross-origin writes are rejected', async () => {
   const f = fixture(), begin = await f.request('/api/auth/google');

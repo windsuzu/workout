@@ -64,11 +64,37 @@ export function applyPlanChanges(plan, changes, { checkExpected = false } = {}) 
   if (!Array.isArray(changes) || !changes.length || changes.length > 50) throw new AppError('Provide one to fifty exercise changes.');
   const next = clone(plan);
   for (const change of changes) {
+    if (!change || typeof change !== 'object') throw new AppError('Invalid exercise change.');
     const e = findExercise(next, change.exerciseId);
+    if (change.field === 'setTarget') {
+      number(change.setIndex, 'Set target index', 0, 19, true);
+      if (checkExpected && change.setIndex >= e.sets) throw new AppError('These settings changed on another device.', 409, 'plan_conflict', { plan });
+      const current = setTarget(e, change.setIndex), value = actualSet(change.value?.weight, change.value?.reps);
+      const expected = checkExpected ? actualSet(change.expected?.weight, change.expected?.reps) : null;
+      if (checkExpected && JSON.stringify(current) !== JSON.stringify(expected) && JSON.stringify(current) !== JSON.stringify(value)) {
+        throw new AppError('These settings changed on another device.', 409, 'plan_conflict', { plan });
+      }
+      e.setTargets = Array.from({ length: e.sets }, (_, i) => i === change.setIndex ? value : setTarget(e, i));
+      continue;
+    }
+    const value = validatePreference(change.field, change.value);
+    if ((change.field === 'weight' || change.field === 'reps') && Object.hasOwn(change, 'expectedTargets')) {
+      if (!Array.isArray(change.expectedTargets) || !change.expectedTargets.length || change.expectedTargets.length > 20) throw new AppError('Provide one to twenty expected set targets.');
+      const expectedTargets = change.expectedTargets.map(target => actualSet(target?.weight, target?.reps));
+      if (!checkExpected && expectedTargets.length !== e.sets) throw new AppError('Provide an expected target for each set.');
+      const currentTargets = Array.from({ length: e.sets }, (_, i) => setTarget(e, i));
+      if (checkExpected && JSON.stringify(currentTargets) !== JSON.stringify(expectedTargets)) {
+        throw new AppError('These settings changed on another device.', 409, 'plan_conflict', { plan });
+      }
+    }
     if (checkExpected && JSON.stringify(e[change.field]) !== JSON.stringify(change.expected) && JSON.stringify(e[change.field]) !== JSON.stringify(change.value)) {
       throw new AppError('These settings changed on another device.', 409, 'plan_conflict', { plan });
     }
-    e[change.field] = validatePreference(change.field, change.value);
+    if ((change.field === 'weight' || change.field === 'reps') && e.setTargets) {
+      e.setTargets = Array.from({ length: e.sets }, (_, i) => ({ ...setTarget(e, i), [change.field]: value }));
+    }
+    e[change.field] = value;
+    if (change.field === 'sets' && e.setTargets) e.setTargets = e.setTargets.slice(0, value);
   }
   next.version = (plan.version || 0) + 1;
   return next;
@@ -78,7 +104,7 @@ export function newSession(plan, day, id = crypto.randomUUID()) {
   if (!DAY_KEYS.includes(day)) throw new AppError('Choose Day A, B, or C.');
   return { id, day, focus: plan.days[day].focus, revision: 0, status: 'draft', startedAt: null, endedAt: null, notes: '',
     exercises: plan.days[day].exercises.map(e => ({ ...clone(e), logs: Array(e.sets).fill(null),
-      drafts: Array.from({ length: e.sets }, () => ({ weight: e.weight, reps: e.reps })),
+      drafts: Array.from({ length: e.sets }, (_, i) => setTarget(e, i)),
       timer: { phase: 'idle', remaining: e.rest, deadline: null } })) };
 }
 
@@ -89,6 +115,12 @@ export const resting = exercise => exercise.timer.phase === 'running' || exercis
 
 export function actualSet(weight, reps) {
   return { weight: number(weight, 'Set weight', 0, 1000), reps: number(reps, 'Set reps', 1, 300, true) };
+}
+
+export function setTarget(exercise, index) {
+  if (!Number.isInteger(index) || index < 0 || index >= exercise.sets) throw new AppError('Set target not found.');
+  const target = exercise.setTargets?.[index];
+  return target == null ? actualSet(exercise.weight, exercise.reps) : actualSet(target.weight, target.reps);
 }
 
 export function completeSet(session, exerciseId, setIndex, values, now = Date.now()) {
@@ -138,9 +170,15 @@ export function validateSession(input) {
       weight: validatePreference('weight', item.weight), reps: validatePreference('reps', item.reps), sets,
       rest: validatePreference('rest', item.rest), angle: validatePreference('angle', item.angle ?? null),
       setup: validatePreference('setup', item.setup || ''), media: mediaURL(item.media),
-      logs: item.logs.map((log, i) => log ? { ...actualSet(log.weight, log.reps), setNumber: i + 1, restSeconds: validatePreference('rest', log.restSeconds ?? item.rest), angle: validatePreference('angle', Object.hasOwn(log, 'angle') ? log.angle : item.angle ?? null), setup: validatePreference('setup', log.setup ?? item.setup ?? '') } : null),
+      logs: item.logs.map((log, i) => log ? { ...actualSet(log.weight, log.reps), setNumber: i + 1, restSeconds: validatePreference('rest', log.restSeconds ?? item.rest), angle: validatePreference('angle', Object.hasOwn(log, 'angle') ? log.angle : item.angle ?? null), setup: validatePreference('setup', log.setup ?? item.setup ?? ''),
+        ...(Object.hasOwn(log, 'previousTarget') ? { previousTarget: actualSet(log.previousTarget?.weight, log.previousTarget?.reps) } : {}),
+        ...(Object.hasOwn(log, 'rememberedTarget') ? { rememberedTarget: actualSet(log.rememberedTarget?.weight, log.rememberedTarget?.reps) } : {}) } : null),
       drafts: Array.from({ length: sets }, (_, i) => actualSet(item.drafts?.[i]?.weight ?? item.weight, item.drafts?.[i]?.reps ?? item.reps)),
       timer: { phase: 'idle', remaining: item.rest, deadline: null } };
+    if (Object.hasOwn(item, 'setTargets')) {
+      if (!Array.isArray(item.setTargets) || item.setTargets.length > sets) throw new AppError('Invalid exercise set targets.');
+      e.setTargets = Array.from({ length: sets }, (_, i) => setTarget(item, i));
+    }
     session.exercises.push(e);
   }
   const start = Date.parse(session.startedAt), end = Date.parse(session.endedAt);

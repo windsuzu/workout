@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { fixture } from './helpers.js';
 import { startServer } from '../scripts/dev-server.mjs';
 import { verifyKeyboard } from './keyboard-browser.mjs';
+import { verifySetMemory } from './sets-browser.mjs';
 
 const f = fixture();
 const server = await startServer({ api: f.api, port: 0 });
@@ -40,6 +41,7 @@ async function changeSettings(values) {
 
 try {
   await verifyKeyboard(browser, origin);
+  await verifySetMemory(browser, origin, f);
   let releaseBoot; const bootGate = new Promise(resolve => { releaseBoot = resolve; });
   let bootReady = false;
   await page.route('**/api/me', async route => { if (!bootReady) await bootGate; await route.continue(); });
